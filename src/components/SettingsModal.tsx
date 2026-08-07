@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "./Modal";
 import { Icon } from "../lib/icons";
-import { storage, format, type ThemeMode } from "../lib/storage";
-import { useStorage } from "../lib/storage-hooks";
+import { storage } from "../lib/storage";
+import { useStorage } from "../hooks/useStorage";
 import { applyTheme } from "../lib/theme";
 import { useToast } from "../lib/toast";
+import type { ThemeMode } from "../types";
 
 export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data, update, reset } = useStorage();
@@ -17,29 +18,22 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     applyTheme(theme);
   };
 
-  const setPaper = (paper: typeof s.print.paper) =>
-    update((d) => ({ ...d, settings: { ...d.settings, print: { ...d.settings.print, paper } } }));
-  const setOrientation = (orientation: typeof s.print.orientation) =>
-    update((d) => ({ ...d, settings: { ...d.settings, print: { ...d.settings.print, orientation } } }));
-  const setCopies = (copies: number) =>
-    update((d) => ({ ...d, settings: { ...d.settings, print: { ...d.settings.print, copies: Math.max(1, Math.min(99, copies)) } } }));
-
-  const [moneyInput, setMoneyInput] = useState(s.quickMoney.map((n) => String(n)).join(", "));
+  const [moneyInput, setMoneyInput] = useState(s.quickMoney.join(", "));
   useEffect(() => {
-    setMoneyInput(s.quickMoney.map((n) => String(n)).join(", "));
+    setMoneyInput(s.quickMoney.join(", "));
   }, [s.quickMoney, open]);
 
   const saveQuickMoney = () => {
     const nums = moneyInput
       .split(/[,\s]+/)
-      .map((x) => Number(x.replace(/[^0-9]/g, "")))
-      .filter((n) => Number.isFinite(n) && n > 0);
+      .map((x: string) => Number(x.replace(/[^0-9]/g, "")))
+      .filter((n: number) => Number.isFinite(n) && n > 0);
     if (nums.length === 0) {
       toast.push("Add at least one amount", "error");
       return;
     }
     update((d) => ({ ...d, settings: { ...d.settings, quickMoney: nums } }));
-    toast.push("Quick money saved");
+    toast.push("Quick money amounts saved");
   };
 
   const doExport = () => {
@@ -57,95 +51,75 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     const reader = new FileReader();
     reader.onload = () => {
       const ok = storage.import(String(reader.result));
-      toast.push(ok ? "Data imported" : "Could not read file", ok ? "success" : "error");
-      if (ok) {
-        applyTheme(storage.getAll().settings.theme);
-      }
+      toast.push(ok ? "Data imported" : "Invalid file", ok ? "success" : "error");
+      if (ok) applyTheme(storage.getAll().settings.theme);
     };
     reader.readAsText(file);
   };
 
   const doClear = () => {
-    if (!confirm("Clear all local data? This resets services, favorites, and settings.")) return;
+    if (!confirm("Clear all local data? This resets everything to defaults.")) return;
     reset();
     applyTheme(storage.getAll().settings.theme);
-    toast.push("Data cleared");
+    toast.push("All data cleared");
   };
 
   return (
     <Modal open={open} onClose={onClose} title="Settings" size="md">
       <div className="space-y-6">
-        <Section title="Printing defaults">
-          <Row label="Paper size">
-            <Segmented
-              options={["A4", "F4", "Letter", "Legal"]}
-              value={s.print.paper}
-              onChange={(v) => setPaper(v as any)}
-            />
-          </Row>
-          <Row label="Orientation">
-            <Segmented
-              options={["portrait", "landscape"]}
-              value={s.print.orientation}
-              onChange={(v) => setOrientation(v as any)}
-              capitalize
-            />
-          </Row>
-          <Row label="Copies">
-            <div className="flex items-center border rounded-lg overflow-hidden w-32" style={{ borderColor: "var(--line)" }}>
-              <button className="w-9 h-9 flex items-center justify-center hover:bg-[rgba(26,26,27,0.04)]" onClick={() => setCopies(s.print.copies - 1)}><Icon name="minus" size="xs" /></button>
-              <input
-                type="number"
-                className="flex-1 text-center bg-transparent outline-none num font-semibold text-sm"
-                value={s.print.copies}
-                onChange={(e) => setCopies(Number(e.target.value) || 1)}
-              />
-              <button className="w-9 h-9 flex items-center justify-center hover:bg-[rgba(26,26,27,0.04)]" onClick={() => setCopies(s.print.copies + 1)}><Icon name="plus" size="xs" /></button>
-            </div>
-          </Row>
-        </Section>
-
-        <Section title="Price desk">
-          <Row label="Quick money buttons">
-            <div className="w-full">
-              <input
-                className="input num"
-                value={moneyInput}
-                onChange={(e) => setMoneyInput(e.target.value)}
-                placeholder="250, 500, 1000"
-              />
-              <div className="text-[11px] text-muted mt-1">Comma-separated Rupiah amounts.</div>
-              <button className="btn btn-secondary mt-2 !py-1.5 text-xs" onClick={saveQuickMoney}>
-                <Icon name="save" /> Save amounts
+        {/* Theme */}
+        <Section title="Appearance">
+          <div className="flex items-center gap-2">
+            {(["light", "dark", "system"] as ThemeMode[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTheme(t)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border capitalize transition-snappy ${
+                  s.theme === t
+                    ? "bg-[color:var(--brand)] text-white border-[color:var(--brand)]"
+                    : "hover:bg-[rgba(26,26,27,0.04)]"
+                }`}
+                style={{ borderColor: s.theme === t ? "var(--brand)" : "var(--line)" }}
+              >
+                {t}
               </button>
-            </div>
-          </Row>
-          <Row label="Services">
-            <div className="text-sm text-muted">
-              Edit services directly on the Price Desk using the <b>Edit services</b> button.
-            </div>
-          </Row>
+            ))}
+          </div>
         </Section>
 
-        <Section title="Interface">
-          <Row label="Theme">
-            <Segmented
-              options={["light", "dark", "system"]}
-              value={s.theme}
-              onChange={(v) => setTheme(v as ThemeMode)}
-              capitalize
-              icons={["sun", "moon", "theme"]}
+        {/* Price Desk Settings */}
+        <Section title="Price Desk">
+          <div>
+            <div className="text-sm font-medium mb-1">Quick Money Buttons</div>
+            <input
+              className="input num text-sm"
+              value={moneyInput}
+              onChange={(e) => setMoneyInput(e.target.value)}
+              placeholder="250, 500, 1000"
             />
-          </Row>
+            <div className="text-[11px] text-muted mt-1">
+              Comma-separated Rupiah amounts.
+            </div>
+            <button
+              className="btn btn-primary mt-2 !py-1.5 text-sm"
+              onClick={saveQuickMoney}
+            >
+              <Icon name="save" /> Save Amounts
+            </button>
+          </div>
         </Section>
 
-        <Section title="Data">
+        {/* Data */}
+        <Section title="Data Management">
           <div className="flex flex-wrap gap-2">
             <button className="btn btn-secondary" onClick={doExport}>
-              <Icon name="download" /> Export data
+              <Icon name="download" /> Export
             </button>
-            <button className="btn btn-secondary" onClick={() => fileRef.current?.click()}>
-              <Icon name="folder" /> Import data
+            <button
+              className="btn btn-secondary"
+              onClick={() => fileRef.current?.click()}
+            >
+              <Icon name="folder" /> Import
             </button>
             <input
               ref={fileRef}
@@ -159,23 +133,34 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
               }}
             />
             <button className="btn btn-danger" onClick={doClear}>
-              <Icon name="trash" /> Clear local data
+              <Icon name="trash" /> Clear All Data
             </button>
           </div>
-          <div className="text-[11px] text-muted mt-2 leading-relaxed">
-            Everything is stored on this device. Use export to back up or move between computers.
-            Current quick money:{" "}
-            {s.quickMoney.map((q) => format.rupiah(q)).join(", ")}
+          <p className="text-[11px] text-muted mt-2 leading-relaxed">
+            Everything stays on this device. Export a backup to move between computers.
+          </p>
+        </Section>
+
+        {/* Keyboard shortcuts */}
+        <Section title="Keyboard Shortcuts">
+          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+            <span className="kbd whitespace-nowrap">Ctrl K</span>
+            <span>Open command search</span>
+            <span className="kbd whitespace-nowrap">Ctrl V</span>
+            <span>Paste image in Print Studio</span>
+            <span className="kbd whitespace-nowrap">Ctrl P</span>
+            <span>Print (when image loaded)</span>
+            <span className="kbd whitespace-nowrap">ESC</span>
+            <span>Close dialogs and panels</span>
           </div>
         </Section>
 
-        <Section title="Shortcuts">
-          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-            <span className="kbd whitespace-nowrap">Ctrl K</span><span>Open command search</span>
-            <span className="kbd whitespace-nowrap">Ctrl V</span><span>Paste image in Quick Print</span>
-            <span className="kbd whitespace-nowrap">Ctrl P</span><span>Print (when image is loaded)</span>
-            <span className="kbd whitespace-nowrap">ESC</span><span>Close modals / sheets</span>
-          </div>
+        {/* About */}
+        <Section title="About Rekaluna">
+          <p className="text-sm text-muted leading-relaxed">
+            Open-source print shop workspace. MIT licensed. No accounts, no tracking, no servers.
+            Built for real operators who need speed and simplicity.
+          </p>
         </Section>
       </div>
     </Modal>
@@ -185,49 +170,8 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3 className="label mb-2">{title}</h3>
-      <div className="space-y-3">{children}</div>
+      <h3 className="label mb-3">{title}</h3>
+      <div className="space-y-2">{children}</div>
     </section>
-  );
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex md:items-center gap-3 md:gap-6 flex-col md:flex-row">
-      <div className="w-40 shrink-0 text-sm font-medium">{label}</div>
-      <div className="flex-1">{children}</div>
-    </div>
-  );
-}
-
-function Segmented<T extends string>({
-  options,
-  value,
-  onChange,
-  capitalize,
-  icons,
-}: {
-  options: T[];
-  value: T;
-  onChange: (v: T) => void;
-  capitalize?: boolean;
-  icons?: string[];
-}) {
-  return (
-    <div className="inline-flex rounded-lg border p-0.5 w-full md:w-auto" style={{ borderColor: "var(--line)" }}>
-      {options.map((o, i) => (
-        <button
-          key={o}
-          onClick={() => onChange(o)}
-          className={`flex-1 md:flex-none px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-snappy inline-flex items-center justify-center gap-1.5 ${
-            value === o ? "bg-[color:var(--brand)] text-white" : "hover:bg-[rgba(26,26,27,0.04)]"
-          }`}
-          style={{ textTransform: capitalize ? "capitalize" : undefined }}
-        >
-          {icons && <Icon name={icons[i]} size="sm" />}
-          {o}
-        </button>
-      ))}
-    </div>
   );
 }

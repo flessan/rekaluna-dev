@@ -1,4 +1,5 @@
-import { storage, type ThemeMode } from "./storage";
+import { storage } from "./storage";
+import type { ThemeMode } from "../types";
 
 export function applyTheme(mode: ThemeMode) {
   const root = document.documentElement;
@@ -19,6 +20,6 @@ export function initTheme() {
   const onChange = () => {
     if (storage.getAll().settings.theme === "system") applyTheme("system");
   };
-  mq.addEventListener?.("change", onChange);
-  return () => mq.removeEventListener?.("change", onChange);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
 }

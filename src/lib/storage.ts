@@ -1,99 +1,179 @@
-// Centralized local storage layer for Rekaluna.
-// All persistence goes through here so nothing is scattered across the app.
+// ── Rekaluna Storage — centralized localStorage layer ──
 
-export type ThemeMode = "light" | "dark" | "system";
+import type {
+  AppData,
+  AppSettings,
+  PrintService,
+  Favorite,
+  RecentActivity,
+  ResourceLink,
+  Template,
+} from "../types";
 
-export interface PrintPrefs {
-  paper: "A4" | "F4" | "Letter" | "Legal";
-  orientation: "portrait" | "landscape";
-  copies: number;
-  scaling: "fit" | "fill" | "original";
-  margin: "none" | "small" | "normal" | "large";
-}
+// Re-export types for convenience
+export type { AppData, AppSettings, PrintService, Favorite, RecentActivity, ResourceLink, Template };
+export type { ThemeMode } from "../types";
 
-export interface Service {
-  id: string;
-  name: string;
-  price: number;
-  color?: string;
-}
-
-export type TransactionItem = {
-  id: string;
-  serviceId?: string;
-  name: string;
-  price: number;
-  qty: number;
-  note?: string;
-  createdAt: number;
-};
-
-export type FavoriteKind = "tool" | "resource" | "action";
-export interface Favorite {
-  id: string;
-  kind: FavoriteKind;
-  label: string;
-  icon: string;
-  target: string; // route or action key
-}
-
-export interface RecentItem {
-  id: string;
-  kind: "print" | "price" | "resource" | "calc";
-  label: string;
-  meta?: string;
-  createdAt: number;
-}
-
-export interface AppSettings {
-  theme: ThemeMode;
-  print: PrintPrefs;
-  quickMoney: number[];
-}
-
-export interface AppData {
-  settings: AppSettings;
-  services: Service[];
-  favorites: Favorite[];
-  recents: RecentItem[];
-  resources: ResourceLink[];
-}
-
-export interface ResourceLink {
-  id: string;
-  name: string;
-  url: string;
-  category: string;
-  note?: string;
-}
-
-const KEY = "rekaluna:v1";
+// ── Defaults ──
 
 const DEFAULT_QUICK_MONEY = [250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
 
-const DEFAULT_SERVICES: Service[] = [
-  { id: "svc-bw", name: "Print Black & White", price: 500 },
+const DEFAULT_SERVICES: PrintService[] = [
+  { id: "svc-bw", name: "Print B/W", price: 500 },
   { id: "svc-color", name: "Print Color", price: 1000 },
-  { id: "svc-copy-bw", name: "Photocopy Black & White", price: 250 },
-  { id: "svc-copy-color", name: "Photocopy Color", price: 500 },
+  { id: "svc-copy-bw", name: "Copy B/W", price: 250 },
+  { id: "svc-copy-color", name: "Copy Color", price: 500 },
   { id: "svc-scan", name: "Scan", price: 500 },
   { id: "svc-laminate", name: "Lamination", price: 3000 },
 ];
 
+const DEFAULT_TEMPLATES: Template[] = [
+  {
+    id: "tpl-passport-4x6",
+    name: "Pas Foto 4×6",
+    description: "4 pieces on 4R paper (10×15cm)",
+    icon: "id-card",
+    paper: "4R",
+    orientation: "portrait",
+    layout: "grid",
+    rows: 4,
+    cols: 2,
+  },
+  {
+    id: "tpl-passport-3x4",
+    name: "Pas Foto 3×4",
+    description: "6 pieces on 4R paper (10×15cm)",
+    icon: "id-card",
+    paper: "4R",
+    orientation: "portrait",
+    layout: "grid",
+    rows: 3,
+    cols: 2,
+  },
+  {
+    id: "tpl-passport-2x3",
+    name: "Pas Foto 2×3",
+    description: "8 pieces on 4R paper (10×15cm)",
+    icon: "id-card",
+    paper: "4R",
+    orientation: "portrait",
+    layout: "grid",
+    rows: 4,
+    cols: 2,
+  },
+  {
+    id: "tpl-a4-photos",
+    name: "A4 Photo Sheet",
+    description: "Multiple photos fit on one A4",
+    icon: "images",
+    paper: "A4",
+    orientation: "portrait",
+    layout: "grid",
+    rows: 3,
+    cols: 2,
+  },
+  {
+    id: "tpl-label",
+    name: "Label Sheet",
+    description: "Standard label layout on A4",
+    icon: "tag",
+    paper: "A4",
+    orientation: "portrait",
+    layout: "grid",
+    rows: 5,
+    cols: 2,
+  },
+];
+
 const DEFAULT_RESOURCES: ResourceLink[] = [
-  { id: "res-epson-download-printer-driver", name: "Epson Download Printer Driver", url: "https://www.epson.co.id/Support/Printers/sh/s1", category: "Driver" },
-  { id: "res-canon-download-printer-driver", name: "Canon Download Printer Driver", url: "https://id.canon/en/support/download", category: "Driver" },
-  { id: "res-hp-download-printer-driver", name: "HP Download Printer Driver", url: "https://support.hp.com/drivers/printers", category: "Driver" },
-  { id: "res-ilovepdf", name: "iLovePDF", url: "https://www.ilovepdf.com/", category: "PDF" },
-  { id: "res-smallpdf", name: "Smallpdf", url: "https://smallpdf.com/", category: "PDF" },
-  { id: "res-tinypng", name: "TinyPNG", url: "https://tinypng.com/", category: "Image" },
-  { id: "res-removebg", name: "Remove.bg", url: "https://www.remove.bg/", category: "Image" },
-  { id: "res-lightshot", name: "Lightshot Screenshot", url: "https://app.prntscr.com/", category: "Utility" },
-  { id: "res-qrconvert", name: "QR Code Generator", url: "https://www.qr-code-generator.com/", category: "Utility" },
+  {
+    id: "res-epson",
+    name: "Epson Printer Drivers",
+    url: "https://www.epson.co.id/Support/Printers/sh/s1",
+    category: "Driver",
+  },
+  {
+    id: "res-canon",
+    name: "Canon Printer Drivers",
+    url: "https://id.canon/en/support/download",
+    category: "Driver",
+  },
+  {
+    id: "res-hp",
+    name: "HP Printer Drivers",
+    url: "https://support.hp.com/drivers/printers",
+    category: "Driver",
+  },
+  {
+    id: "res-brother",
+    name: "Brother Printer Drivers",
+    url: "https://support.brother.com/g/b/productsearch.aspx?c=id&lang=en",
+    category: "Driver",
+  },
+  {
+    id: "res-ilovepdf",
+    name: "iLovePDF",
+    url: "https://www.ilovepdf.com/",
+    category: "PDF",
+  },
+  {
+    id: "res-smallpdf",
+    name: "Smallpdf",
+    url: "https://smallpdf.com/",
+    category: "PDF",
+  },
+  {
+    id: "res-pdfescape",
+    name: "PDFescape",
+    url: "https://www.pdfescape.com/",
+    category: "PDF",
+  },
+  {
+    id: "res-tinypng",
+    name: "TinyPNG",
+    url: "https://tinypng.com/",
+    category: "Image",
+  },
+  {
+    id: "res-removebg",
+    name: "Remove.bg",
+    url: "https://www.remove.bg/",
+    category: "Image",
+  },
+  {
+    id: "res-photopea",
+    name: "Photopea",
+    url: "https://www.photopea.com/",
+    category: "Image",
+  },
+  {
+    id: "res-lightshot",
+    name: "Lightshot",
+    url: "https://app.prntscr.com/",
+    category: "Screenshot",
+  },
+  {
+    id: "res-sharex",
+    name: "ShareX",
+    url: "https://getsharex.com/",
+    category: "Screenshot",
+  },
+  {
+    id: "res-qrcode",
+    name: "QR Code Generator",
+    url: "https://www.qr-code-generator.com/",
+    category: "Utility",
+  },
+  {
+    id: "res-ninite",
+    name: "Ninite (Fast PC Setup)",
+    url: "https://ninite.com/",
+    category: "Utility",
+  },
 ];
 
 const DEFAULT_FAVORITES: Favorite[] = [
-  { id: "/print", kind: "tool", label: "Quick Print", icon: "print", target: "/print" },
+  { id: "/print", kind: "tool", label: "Print Studio", icon: "print", target: "/print" },
   { id: "/price", kind: "tool", label: "Price Desk", icon: "calculator", target: "/price" },
 ];
 
@@ -107,6 +187,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     margin: "normal",
   },
   quickMoney: DEFAULT_QUICK_MONEY,
+  counterMode: false,
 };
 
 const DEFAULT_DATA: AppData = {
@@ -115,25 +196,35 @@ const DEFAULT_DATA: AppData = {
   favorites: DEFAULT_FAVORITES,
   recents: [],
   resources: DEFAULT_RESOURCES,
+  templates: DEFAULT_TEMPLATES,
+  printQueue: [],
+  clipboard: [],
 };
+
+const STORAGE_KEY = "rekaluna:v2";
+
+// ── Read / Write ──
 
 function read(): AppData {
   if (typeof window === "undefined") return structuredClone(DEFAULT_DATA);
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return structuredClone(DEFAULT_DATA);
     const parsed = JSON.parse(raw) as Partial<AppData>;
-    // Merge defaults to be forwards-compatible
     return {
       settings: {
-        ...DEFAULT_SETTINGS, ...(parsed.settings ?? {}),
+        ...DEFAULT_SETTINGS,
+        ...(parsed.settings ?? {}),
         print: { ...DEFAULT_SETTINGS.print, ...(parsed.settings?.print ?? {}) },
         quickMoney: parsed.settings?.quickMoney ?? DEFAULT_SETTINGS.quickMoney,
       },
-      services: parsed.services && parsed.services.length ? parsed.services : DEFAULT_SERVICES,
+      services: parsed.services?.length ? parsed.services : DEFAULT_SERVICES,
       favorites: parsed.favorites ?? DEFAULT_FAVORITES,
       recents: parsed.recents ?? [],
       resources: parsed.resources ?? DEFAULT_RESOURCES,
+      templates: parsed.templates ?? DEFAULT_TEMPLATES,
+      printQueue: parsed.printQueue ?? [],
+      clipboard: parsed.clipboard ?? [],
     };
   } catch {
     return structuredClone(DEFAULT_DATA);
@@ -142,98 +233,111 @@ function read(): AppData {
 
 function write(data: AppData) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     window.dispatchEvent(new CustomEvent("rekaluna:storage", { detail: data }));
   } catch (e) {
-    console.warn("Rekaluna storage unavailable", e);
+    console.warn("Rekaluna storage write failed", e);
   }
 }
 
-let memoryCache: AppData | null = null;
+let cache: AppData | null = null;
+
+// ── Public API ──
 
 export const storage = {
   getAll(): AppData {
-    if (!memoryCache) memoryCache = read();
-    return memoryCache;
+    if (!cache) cache = read();
+    return cache;
   },
+
   setAll(next: AppData) {
-    memoryCache = next;
+    cache = next;
     write(next);
   },
-  update(fn: (data: AppData) => AppData) {
+
+  update(fn: (data: AppData) => AppData): AppData {
     const next = fn(this.getAll());
     this.setAll(next);
     return next;
   },
-  reset() {
-    memoryCache = structuredClone(DEFAULT_DATA);
-    write(memoryCache);
-    return memoryCache;
+
+  reset(): AppData {
+    cache = structuredClone(DEFAULT_DATA);
+    write(cache);
+    return cache;
   },
+
   export(): string {
     return JSON.stringify(this.getAll(), null, 2);
   },
+
   import(text: string): boolean {
     try {
-      const parsed = JSON.parse(text) as AppData;
-      if (typeof parsed !== "object") return false;
+      const parsed = JSON.parse(text) as Partial<AppData>;
+      if (typeof parsed !== "object" || !parsed) return false;
       this.setAll({
         settings: {
-          ...DEFAULT_SETTINGS, ...parsed.settings,
-          print: { ...DEFAULT_SETTINGS.print, ...(parsed.settings?.print ?? {}) }
+          ...DEFAULT_SETTINGS,
+          ...parsed.settings,
+          print: { ...DEFAULT_SETTINGS.print, ...(parsed.settings?.print ?? {}) },
+          quickMoney: parsed.settings?.quickMoney ?? DEFAULT_SETTINGS.quickMoney,
         },
-        services: Array.isArray(parsed.services) ? parsed.services : DEFAULT_SERVICES,
+        services: Array.isArray(parsed.services) && parsed.services.length ? parsed.services : DEFAULT_SERVICES,
         favorites: Array.isArray(parsed.favorites) ? parsed.favorites : DEFAULT_FAVORITES,
         recents: Array.isArray(parsed.recents) ? parsed.recents : [],
         resources: Array.isArray(parsed.resources) ? parsed.resources : DEFAULT_RESOURCES,
+        templates: Array.isArray(parsed.templates) ? parsed.templates : DEFAULT_TEMPLATES,
+        printQueue: Array.isArray(parsed.printQueue) ? parsed.printQueue : [],
+        clipboard: Array.isArray(parsed.clipboard) ? parsed.clipboard : [],
       });
       return true;
     } catch {
       return false;
     }
   },
-  addRecent(item: Omit<RecentItem, "id" | "createdAt">) {
+
+  addRecent(item: Omit<RecentActivity, "id" | "createdAt">) {
     const all = this.getAll();
-    const entry: RecentItem = {
+    const entry: RecentActivity = {
       ...item,
       id: crypto.randomUUID(),
       createdAt: Date.now(),
     };
-    // de-dupe same label within last 20
-    const next = [entry, ...all.recents.filter((r) => r.label !== item.label)].slice(0, 20);
+    const next = [entry, ...all.recents.filter((r: RecentActivity) => r.label !== item.label)].slice(0, 20);
     this.setAll({ ...all, recents: next });
   },
 };
 
-// Utility: ID
+// ── Helpers ──
+
 export function uid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return Math.random().toString(36).slice(2, 10);
 }
 
-// Currency formatter (Indonesian Rupiah)
-const rupiah = new Intl.NumberFormat("id-ID", {
+// ── Currency formatter (Indonesian Rupiah) ──
+
+const rupiahFormatter = new Intl.NumberFormat("id-ID", {
   style: "currency",
   currency: "IDR",
   minimumFractionDigits: 0,
   maximumFractionDigits: 0,
 });
 
-const numericID = new Intl.NumberFormat("id-ID", {
+const numericFormatter = new Intl.NumberFormat("id-ID", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 0,
 });
 
-export const format = {
+export const fmt = {
   rupiah(n: number): string {
-    if (!Number.isFinite(n)) return rupiah.format(0);
-    return rupiah.format(Math.round(n));
+    if (!Number.isFinite(n)) return rupiahFormatter.format(0);
+    return rupiahFormatter.format(Math.round(n));
   },
   number(n: number): string {
     if (!Number.isFinite(n)) return "0";
-    return numericID.format(Math.round(n));
+    return numericFormatter.format(Math.round(n));
   },
-  // Parse formatted string to number (accepts '10.000' or 'Rp10.000')
   parse(input: string): number {
     if (input == null) return 0;
     const cleaned = String(input).replace(/[^0-9,-]/g, "").replace(/,/g, ".");

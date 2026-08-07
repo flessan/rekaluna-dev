@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { useStorage } from "../../lib/storage-hooks";
-import { storage, format, uid } from "../../lib/storage";
+import { useStorage } from "../../hooks/useStorage";
+import { storage, uid } from "../../lib/storage";
+import type { PrintPreferences } from "../../types";
 
 type PaperSize = "A4" | "F4" | "Letter" | "Legal";
 type Orientation = "portrait" | "landscape";
 type Scaling = "fit" | "fill" | "original";
 type Margin = "none" | "small" | "normal" | "large";
 
-interface ImageState {
+interface LoadedImage {
   src: string;
   width: number;
   height: number;
@@ -30,16 +31,19 @@ const MARGIN_MM: Record<Margin, number> = {
   large: 15,
 };
 
-export default function QuickPrintPage() {
+export default function PrintStudioPage() {
   const { data, update } = useStorage();
   const prefs = data.settings.print;
-  const setPrefs = (patch: Partial<typeof prefs>) =>
-    update((d) => ({ ...d, settings: { ...d.settings, print: { ...d.settings.print, ...patch } } }));
 
-  const [image, setImage] = useState<ImageState | null>(null);
+  const setPrefs = (patch: Partial<PrintPreferences>) =>
+    update((d) => ({
+      ...d,
+      settings: { ...d.settings, print: { ...d.settings.print, ...patch } },
+    }));
+
+  const [image, setImage] = useState<LoadedImage | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const loadFile = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return;
@@ -48,11 +52,17 @@ export default function QuickPrintPage() {
       const src = String(reader.result);
       const img = new Image();
       img.onload = () => {
-        setImage({ src, width: img.naturalWidth, height: img.naturalHeight, name: file.name, rotation: 0 });
+        setImage({
+          src,
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+          name: file.name,
+          rotation: 0,
+        });
         storage.addRecent({
           kind: "print",
-          label: file.name || "Pasted image",
-          meta: `${img.naturalWidth}×${img.naturalHeight}`,
+          label: file.name || "Image loaded",
+          detail: `${img.naturalWidth}×${img.naturalHeight}`,
         });
       };
       img.src = src;
@@ -62,7 +72,8 @@ export default function QuickPrintPage() {
 
   const handlePaste = useCallback(
     (e: ClipboardEvent) => {
-      if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
       const items = e.clipboardData?.items;
       if (!items) return;
       for (const item of Array.from(items)) {
@@ -80,9 +91,9 @@ export default function QuickPrintPage() {
   );
 
   useEffect(() => {
-    window.addEventListener("paste", handlePaste as any);
+    window.addEventListener("paste", handlePaste as EventListener);
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === "p" || e.key === "P")) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
         if (image) {
           e.preventDefault();
           window.print();
@@ -91,7 +102,7 @@ export default function QuickPrintPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener("paste", handlePaste as any);
+      window.removeEventListener("paste", handlePaste as EventListener);
       window.removeEventListener("keydown", onKey);
     };
   }, [handlePaste, image]);
@@ -104,12 +115,32 @@ export default function QuickPrintPage() {
   };
 
   const rotate = () => {
-    setImage((i) => (i ? { ...i, rotation: ((i.rotation + 90) % 360) as 0 | 90 | 180 | 270 } : i));
+    setImage((i) =>
+      i ? { ...i, rotation: ((i.rotation + 90) % 360) as 0 | 90 | 180 | 270 } : i
+    );
   };
 
   const clearImage = () => setImage(null);
 
-  // Compute CSS preview sizing to show print area
+  const addToQueue = () => {
+    if (!image) return;
+    update((d) => ({
+      ...d,
+      printQueue: [
+        ...d.printQueue,
+        {
+          id: uid(),
+          imageSrc: image.src,
+          name: image.name || "Unnamed",
+          paper: prefs.paper,
+          orientation: prefs.orientation,
+          copies: prefs.copies,
+          createdAt: Date.now(),
+        },
+      ],
+    }));
+  };
+
   const paper = PAPER_DIMS[prefs.paper];
   const marginMm = MARGIN_MM[prefs.margin];
   const orientedW = prefs.orientation === "portrait" ? paper.w : paper.h;
@@ -117,35 +148,38 @@ export default function QuickPrintPage() {
   const innerW = orientedW - marginMm * 2;
   const innerH = orientedH - marginMm * 2;
 
-  // Scale preview box to fit preview container (max width 520)
   const previewScale = useMemo(() => {
-    if (!previewRef.current) return 1.6;
-    const cw = Math.min(previewRef.current.clientWidth, 560);
-    return (cw - 32) / orientedW; // px per mm
-  }, [orientedW, image]);
-
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const on = () => setTick((t) => t + 1);
-    window.addEventListener("resize", on);
-    return () => window.removeEventListener("resize", on);
-  }, []);
+    if (typeof window === "undefined") return 1.4;
+    return Math.min((Math.min(window.innerWidth - 400, 560) - 32) / orientedW, 1.8);
+  }, [orientedW]);
 
   const copiesArr = Array.from({ length: prefs.copies }, (_, i) => i);
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex items-end justify-between mb-5">
+      <div className="flex items-end justify-between mb-5 gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Quick Print</h1>
-          <p className="text-sm text-muted mt-1">Paste with <span className="kbd">Ctrl V</span>, drag a file, or click to select. Then print.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+            Print Studio
+          </h1>
+          <p className="text-sm text-muted mt-1">
+            Paste with{" "}
+            <span className="kbd">Ctrl V</span>, drop, or browse. Then print.
+          </p>
         </div>
+        {image && (
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="btn btn-secondary"
+          >
+            <Icon name="folder" /> Change
+          </button>
+        )}
       </div>
 
-      <div className="grid md:grid-cols-[1fr_320px] gap-5">
+      <div className="grid md:grid-cols-[1fr_300px] gap-5">
         {/* Preview / Drop zone */}
         <div
-          ref={previewRef}
           onDragOver={(e) => {
             e.preventDefault();
             setDragOver(true);
@@ -153,26 +187,40 @@ export default function QuickPrintPage() {
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
           className={`card p-5 relative overflow-hidden transition-snappy ${
-            dragOver ? "ring-2 ring-[color:var(--brand)]" : ""
+            dragOver ? "ring-2" : ""
           }`}
-          style={{ minHeight: 460 }}
+          style={{
+            minHeight: 460,
+            ...(dragOver
+              ? { boxShadow: "0 0 0 3px rgba(156,28,38,0.2)" }
+              : {}),
+          }}
         >
           {!image ? (
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => fileRef.current?.click()}
               className="w-full h-full min-h-[420px] rounded-xl flex flex-col items-center justify-center gap-3 border-2 border-dashed text-center px-6"
               style={{ borderColor: "var(--line)", color: "var(--muted)" }}
             >
-              <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--brand) 10%, transparent)", color: "var(--brand)" }}>
+              <div
+                className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                style={{
+                  background: "color-mix(in srgb, var(--brand) 10%, transparent)",
+                  color: "var(--brand)",
+                }}
+              >
                 <Icon name="paste" size="lg" />
               </div>
               <div>
-                <div className="text-[color:var(--ink)] font-semibold text-base">No image yet</div>
-                <div className="text-sm mt-1">
-                  Press <span className="kbd">Ctrl V</span> to paste, drop a file here, or click to browse.
+                <div className="font-semibold text-base" style={{ color: "var(--ink)" }}>
+                  No Image Loaded
                 </div>
+                <p className="text-sm mt-1">
+                  Press <span className="kbd">Ctrl V</span> to paste, drop a
+                  file here, or click to browse.
+                </p>
               </div>
-              <div className="flex items-center gap-2 text-xs mt-2">
+              <div className="flex items-center gap-2 text-xs mt-2 flex-wrap justify-center">
                 <span className="chip">PNG</span>
                 <span className="chip">JPG</span>
                 <span className="chip">WEBP</span>
@@ -181,26 +229,43 @@ export default function QuickPrintPage() {
             </button>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="chip"><Icon name="image" size="sm" /> {image.name || "Image"}</span>
-                <span className="chip num">{image.width}×{image.height}</span>
-                <span className="chip">{prefs.paper} · {prefs.orientation}</span>
+              <div className="flex items-center gap-2 text-sm flex-wrap">
+                <span className="chip">
+                  <Icon name="image" size="sm" />{" "}
+                  {image.name || "Pasted image"}
+                </span>
+                <span className="chip num">
+                  {image.width}×{image.height}
+                </span>
+                {image.rotation !== 0 && (
+                  <span className="chip">{image.rotation}°</span>
+                )}
+                <span className="chip">
+                  {prefs.paper} · {prefs.orientation}
+                </span>
                 <div className="flex-1" />
-                <button onClick={rotate} className="btn btn-secondary !py-1.5 !px-2.5" title="Rotate">
-                  <Icon name="rotate" /> Rotate
+                <button
+                  onClick={rotate}
+                  className="btn btn-secondary !py-1.5 !px-2.5"
+                  title="Rotate 90°"
+                >
+                  <Icon name="arrows-rotate" /> Rotate
                 </button>
-                <button onClick={clearImage} className="btn btn-danger !py-1.5 !px-2.5" title="Remove">
+                <button
+                  onClick={clearImage}
+                  className="btn btn-ghost !py-1.5 !px-2.5 text-red-600"
+                  title="Remove image"
+                >
                   <Icon name="trash" /> Remove
                 </button>
               </div>
 
-              {/* Preview pages */}
               <div className="flex flex-wrap gap-4 justify-center py-2">
                 {copiesArr.map((_, i) => (
                   <div
                     key={i}
-                    id={i === 0 ? "print-area" : "print-area-copy"}
-                    className="print-area-page bg-white shadow-soft relative"
+                    id={i === 0 ? "print-area" : `print-area-${i}`}
+                    className="bg-white shadow-soft relative"
                     style={{
                       width: orientedW * previewScale,
                       height: orientedH * previewScale,
@@ -219,24 +284,27 @@ export default function QuickPrintPage() {
                       <img
                         src={image.src}
                         alt="Print preview"
+                        draggable={false}
                         style={{
                           transform: `rotate(${image.rotation}deg)`,
-                          maxWidth: prefs.scaling === "original" ? "none" : "100%",
-                          maxHeight: prefs.scaling === "original" ? "none" : "100%",
+                          maxWidth:
+                            prefs.scaling === "original" ? "none" : "100%",
+                          maxHeight:
+                            prefs.scaling === "original" ? "none" : "100%",
                           width:
                             prefs.scaling === "fill"
                               ? "100%"
                               : prefs.scaling === "original"
-                              ? `${image.width * previewScale * 0.2645}px`
-                              : "auto",
+                                ? `${image.width * previewScale * 0.2645}px`
+                                : "auto",
                           height:
                             prefs.scaling === "fill"
                               ? "100%"
                               : prefs.scaling === "original"
-                              ? `${image.height * previewScale * 0.2645}px`
-                              : "auto",
-                          objectFit: prefs.scaling === "fill" ? "cover" : "contain",
-                          imageRendering: "auto",
+                                ? `${image.height * previewScale * 0.2645}px`
+                                : "auto",
+                          objectFit:
+                            prefs.scaling === "fill" ? "cover" : "contain",
                         }}
                       />
                     </div>
@@ -245,13 +313,15 @@ export default function QuickPrintPage() {
               </div>
 
               <div className="text-center text-xs text-muted">
-                Print area preview — {orientedW}×{orientedH}mm · margin {prefs.margin} · {prefs.scaling}
+                {orientedW}×{orientedH}mm · {prefs.scaling} · margin {prefs.margin}
+                {" · "}
+                <span className="kbd">Ctrl P</span> to print
               </div>
             </div>
           )}
 
           <input
-            ref={fileInputRef}
+            ref={fileRef}
             type="file"
             accept="image/*"
             className="hidden"
@@ -266,7 +336,7 @@ export default function QuickPrintPage() {
         {/* Settings panel */}
         <aside className="card p-4 space-y-4 h-fit md:sticky md:top-20">
           <div>
-            <div className="label mb-2">Paper size</div>
+            <div className="label mb-2">Paper Size</div>
             <div className="grid grid-cols-4 gap-1.5">
               {(["A4", "F4", "Letter", "Legal"] as PaperSize[]).map((p) => (
                 <button
@@ -277,7 +347,10 @@ export default function QuickPrintPage() {
                       ? "bg-[color:var(--brand)] text-white border-[color:var(--brand)]"
                       : "hover:bg-[rgba(26,26,27,0.04)]"
                   }`}
-                  style={{ borderColor: "var(--line)" }}
+                  style={{
+                    borderColor:
+                      prefs.paper === p ? "var(--brand)" : "var(--line)",
+                  }}
                 >
                   {p}
                 </button>
@@ -297,9 +370,15 @@ export default function QuickPrintPage() {
                       ? "bg-[color:var(--brand)] text-white border-[color:var(--brand)]"
                       : "hover:bg-[rgba(26,26,27,0.04)]"
                   }`}
-                  style={{ borderColor: "var(--line)" }}
+                  style={{
+                    borderColor:
+                      prefs.orientation === o ? "var(--brand)" : "var(--line)",
+                  }}
                 >
-                  <Icon name={o === "portrait" ? "mobile" : "image"} className="mr-1" />
+                  <Icon
+                    name={o === "portrait" ? "mobile" : "image"}
+                    className="mr-1.5"
+                  />
                   {o}
                 </button>
               ))}
@@ -308,11 +387,15 @@ export default function QuickPrintPage() {
 
           <div>
             <div className="label mb-2">Copies</div>
-            <div className="flex items-center border rounded-lg overflow-hidden" style={{ borderColor: "var(--line)" }}>
+            <div
+              className="flex items-center border rounded-lg overflow-hidden"
+              style={{ borderColor: "var(--line)" }}
+            >
               <button
                 className="w-10 h-10 flex items-center justify-center hover:bg-[rgba(26,26,27,0.04)]"
-                onClick={() => setPrefs({ copies: Math.max(1, prefs.copies - 1) })}
-                aria-label="Decrease copies"
+                onClick={() =>
+                  setPrefs({ copies: Math.max(1, prefs.copies - 1) })
+                }
               >
                 <Icon name="minus" />
               </button>
@@ -323,14 +406,18 @@ export default function QuickPrintPage() {
                 className="flex-1 h-10 text-center num bg-transparent outline-none text-sm font-semibold"
                 value={prefs.copies}
                 onChange={(e) => {
-                  const n = Math.max(1, Math.min(99, Number(e.target.value) || 1));
+                  const n = Math.max(
+                    1,
+                    Math.min(99, Number(e.target.value) || 1)
+                  );
                   setPrefs({ copies: n });
                 }}
               />
               <button
                 className="w-10 h-10 flex items-center justify-center hover:bg-[rgba(26,26,27,0.04)]"
-                onClick={() => setPrefs({ copies: Math.min(99, prefs.copies + 1) })}
-                aria-label="Increase copies"
+                onClick={() =>
+                  setPrefs({ copies: Math.min(99, prefs.copies + 1) })
+                }
               >
                 <Icon name="plus" />
               </button>
@@ -349,9 +436,12 @@ export default function QuickPrintPage() {
                       ? "bg-[color:var(--brand)] text-white border-[color:var(--brand)]"
                       : "hover:bg-[rgba(26,26,27,0.04)]"
                   }`}
-                  style={{ borderColor: "var(--line)" }}
+                  style={{
+                    borderColor:
+                      prefs.scaling === s ? "var(--brand)" : "var(--line)",
+                  }}
                 >
-                  {s === "fit" ? "Fit" : s === "fill" ? "Fill" : "Original"}
+                  {s}
                 </button>
               ))}
             </div>
@@ -369,7 +459,10 @@ export default function QuickPrintPage() {
                       ? "bg-[color:var(--brand)] text-white border-[color:var(--brand)]"
                       : "hover:bg-[rgba(26,26,27,0.04)]"
                   }`}
-                  style={{ borderColor: "var(--line)" }}
+                  style={{
+                    borderColor:
+                      prefs.margin === m ? "var(--brand)" : "var(--line)",
+                  }}
                 >
                   {m}
                 </button>
@@ -384,43 +477,45 @@ export default function QuickPrintPage() {
             disabled={!image}
             className="btn btn-primary w-full !py-3 !text-base disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Icon name="print" /> Print {prefs.copies > 1 ? `(${prefs.copies})` : ""}
+            <Icon name="print" /> Print
+            {prefs.copies > 1 ? ` (${prefs.copies})` : ""}
           </button>
+
           <button
-            onClick={() => fileInputRef.current?.click()}
-            className="btn btn-secondary w-full"
+            onClick={addToQueue}
+            disabled={!image}
+            className="btn btn-secondary w-full disabled:opacity-50"
           >
-            <Icon name="folder" /> Select file
+            <Icon name="inbox" /> Add to Queue
           </button>
+
           <div className="text-[11px] text-muted leading-relaxed text-center pt-1">
             Images stay on this device. Nothing is uploaded.
           </div>
-          <div className="text-[11px] text-muted leading-relaxed text-center">
-            Inner area: {Math.round(innerW)}×{Math.round(innerH)}mm
+          <div className="text-[11px] text-muted text-center">
+            Print area: {Math.round(innerW)}×{Math.round(innerH)}mm
           </div>
         </aside>
       </div>
 
-      {/* Print-only styles for multiple copies */}
       <style>{`
         @media print {
           @page { size: ${orientedW}mm ${orientedH}mm; margin: ${marginMm}mm; }
           body { background: white !important; }
-          #print-area, #print-area-copy {
+          #print-area, [id^="print-area-"] {
             width: ${orientedW}mm !important;
             height: ${orientedH}mm !important;
             padding: ${marginMm}mm !important;
             box-shadow: none !important;
             margin: 0 !important;
             page-break-after: always;
-            break-after: page;
           }
-          #print-area-copy:last-child { page-break-after: auto; }
-          #print-area img, #print-area-copy img { max-width: 100% !important; max-height: 100% !important; }
+          [id^="print-area-"]:last-child { page-break-after: auto; }
+          #print-area img, [id^="print-area-"] img {
+            max-width: 100% !important; max-height: 100% !important;
+          }
         }
       `}</style>
-      {void uid}
-      {void format}
     </div>
   );
 }

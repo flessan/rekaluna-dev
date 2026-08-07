@@ -1,5 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
-import { storage, type AppData } from "./storage";
+import { storage, type AppData } from "../lib/storage";
 
 function subscribe(cb: () => void) {
   const handler = () => cb();
