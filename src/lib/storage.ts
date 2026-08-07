@@ -81,9 +81,9 @@ const DEFAULT_SERVICES: Service[] = [
 ];
 
 const DEFAULT_RESOURCES: ResourceLink[] = [
-  { id: "res-epson-l3210", name: "Epson L3210 Driver", url: "https://support.epson.net/setupnavi/mira/navi/l3210/", category: "Driver" },
-  { id: "res-canonsetup", name: "Canon PIXMA Drivers", url: "https://www.usa.canon.com/support/software-drivers", category: "Driver" },
-  { id: "res-hpprint", name: "HP Printer Support", url: "https://support.hp.com/drivers/printers", category: "Driver" },
+  { id: "res-epson-download-printer-driver", name: "Epson Download Printer Driver", url: "https://www.epson.co.id/Support/Printers/sh/s1", category: "Driver" },
+  { id: "res-canon-download-printer-driver", name: "Canon Download Printer Driver", url: "https://id.canon/en/support/download", category: "Driver" },
+  { id: "res-hp-download-printer-driver", name: "HP Download Printer Driver", url: "https://support.hp.com/drivers/printers", category: "Driver" },
   { id: "res-ilovepdf", name: "iLovePDF", url: "https://www.ilovepdf.com/", category: "PDF" },
   { id: "res-smallpdf", name: "Smallpdf", url: "https://smallpdf.com/", category: "PDF" },
   { id: "res-tinypng", name: "TinyPNG", url: "https://tinypng.com/", category: "Image" },
@@ -125,7 +125,8 @@ function read(): AppData {
     const parsed = JSON.parse(raw) as Partial<AppData>;
     // Merge defaults to be forwards-compatible
     return {
-      settings: { ...DEFAULT_SETTINGS, ...(parsed.settings ?? {}),
+      settings: {
+        ...DEFAULT_SETTINGS, ...(parsed.settings ?? {}),
         print: { ...DEFAULT_SETTINGS.print, ...(parsed.settings?.print ?? {}) },
         quickMoney: parsed.settings?.quickMoney ?? DEFAULT_SETTINGS.quickMoney,
       },
@@ -177,8 +178,10 @@ export const storage = {
       const parsed = JSON.parse(text) as AppData;
       if (typeof parsed !== "object") return false;
       this.setAll({
-        settings: { ...DEFAULT_SETTINGS, ...parsed.settings,
-          print: { ...DEFAULT_SETTINGS.print, ...(parsed.settings?.print ?? {}) } },
+        settings: {
+          ...DEFAULT_SETTINGS, ...parsed.settings,
+          print: { ...DEFAULT_SETTINGS.print, ...(parsed.settings?.print ?? {}) }
+        },
         services: Array.isArray(parsed.services) ? parsed.services : DEFAULT_SERVICES,
         favorites: Array.isArray(parsed.favorites) ? parsed.favorites : DEFAULT_FAVORITES,
         recents: Array.isArray(parsed.recents) ? parsed.recents : [],
