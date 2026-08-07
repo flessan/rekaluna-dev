@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rekaluna — All Your Printing Needs.</title>
+<meta name="description" content="Rekaluna is an open-source browser workspace for print shop operators. Lightweight tools to calculate prices, print images instantly, and access drivers.">
+<meta name="theme-color" content="#9C1C26">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/responsive.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%239C1C26'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white' font-family='Inter' font-weight='800'>R</text></svg>">
+</head>
+<body>
+<!-- Skip link -->
+<a href="#main-content" class="skip-link">Skip to content</a>
+
+<!-- Topbar -->
+<header class="topbar" role="banner">
+  <div class="topbar__left">
+    <button class="icon-btn topbar__menu-btn" id="mobileMenuBtn" aria-label="Open menu" style="display:none">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+    <a href="#" class="brand" aria-label="Rekaluna home" data-nav="workspace">
+      <span class="brand__mark">R</span>
+      <span class="brand__text">Rekaluna</span>
+      <span class="brand__dot"></span>
+    </a>
+    <span class="brand__tagline">All Your Printing Needs.</span>
+  </div>
+  <div class="topbar__center">
+    <button class="search-trigger" id="searchTrigger" aria-label="Search commands (Ctrl+K)">
+      <i class="fa-solid fa-search"></i>
+      <span>Search tools, actions…</span>
+      <kbd>Ctrl K</kbd>
+    </button>
+  </div>
+  <div class="topbar__right">
+    <div class="topbar__status">
+      <span class="status-dot"></span>
+      <span>Local-first • Offline ready</span>
+    </div>
+    <button class="icon-btn" id="settingsBtn" aria-label="Settings">
+      <i class="fa-solid fa-gear"></i>
+    </button>
+  </div>
+</header>
+
+<div class="app-layout">
+  <!-- Sidebar Desktop -->
+  <nav class="sidebar" aria-label="Main navigation" id="sidebar">
+    <div class="sidebar__section">
+      <span class="sidebar__label">Workspace</span>
+      <a href="#" class="nav-item is-active" data-nav="workspace" aria-current="page"><i class="fa-solid fa-house"></i><span>Workspace</span></a>
+      <a href="#" class="nav-item" data-nav="quickprint"><i class="fa-solid fa-print"></i><span>Quick Print</span><span class="nav-badge">Ctrl+V</span></a>
+      <a href="#" class="nav-item" data-nav="pricedesk"><i class="fa-solid fa-calculator"></i><span>Price Desk</span></a>
+    </div>
+    <div class="sidebar__section">
+      <span class="sidebar__label">Toolbox</span>
+      <a href="#" class="nav-item" data-nav="resources"><i class="fa-solid fa-file-arrow-down"></i><span>Resources</span></a>
+      <a href="#" class="nav-item" data-nav="support"><i class="fa-solid fa-heart"></i><span>Support</span></a>
+      <a href="#" class="nav-item" data-nav="about"><i class="fa-solid fa-circle-info"></i><span>About</span></a>
+    </div>
+    <div class="sidebar__footer">
+      <div class="sidebar__card">
+        <div class="sidebar__card-icon"><i class="fa-solid fa-bolt"></i></div>
+        <p class="sidebar__card-title">Stay focused</p>
+        <p class="sidebar__card-text">This tab stays open all day. No login. No tracking. Data stays in your browser.</p>
+      </div>
+      <div class="sidebar__meta">
+        <span>v1.0 • Open source</span>
+        <a href="https://github.com" target="_blank" rel="noopener">GitHub <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px"></i></a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main" id="main-content">
+    <!-- WORKSPACE -->
+    <section class="page is-active" id="page-workspace" aria-labelledby="workspace-title">
+      <div class="page__header">
+        <div>
+          <h1 id="workspace-title" class="page__title">Good morning <span class="wave">👋</span></h1>
+          <p class="page__subtitle" id="greetingSubtitle">What do you need today? Quick actions for the counter.</p>
+        </div>
+        <div class="page__header-actions">
+          <span class="chip"><i class="fa-regular fa-clock"></i> <span id="liveClock">--:--</span> • <span id="liveDate">--</span></span>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat">
+          <span class="stat__label">Today's transactions</span>
+          <span class="stat__value" id="statTransactions">0</span>
+          <span class="stat__hint">Saved locally</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Total calculated</span>
+          <span class="stat__value" id="statTotal">Rp 0</span>
+          <span class="stat__hint">All time</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Paper default</span>
+          <span class="stat__value" id="statPaper" style="font-size:18px">A4 • Portrait</span>
+          <span class="stat__hint">Change in Settings</span>
+        </div>
+      </div>
+
+      <div class="cards-grid">
+        <article class="action-card action-card--primary" data-nav="quickprint" tabindex="0" role="button" aria-label="Open Quick Print">
+          <div class="action-card__icon"><i class="fa-solid fa-print"></i></div>
+          <div class="action-card__body">
+            <h2>Quick Print</h2>
+            <p>Paste image and print instantly. Ctrl+V, drag & drop.</p>
+            <span class="action-card__cta">Open Quick Print <i class="fa-solid fa-arrow-right"></i></span>
+          </div>
+          <div class="action-card__preview">
+            <div class="mini-paper">
+              <div class="mini-paper__image"><i class="fa-solid fa-image"></i></div>
+              <span>A4</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="action-card" data-nav="pricedesk" tabindex="0" role="button" aria-label="Open Price Desk">
+          <div class="action-card__icon action-card__icon--dark"><i class="fa-solid fa-calculator"></i></div>
+          <div class="action-card__body">
+            <h2>Price Desk</h2>
+            <p>Calculate printing prices faster than a calculator.</p>
+            <span class="action-card__cta">Open Price Desk <i class="fa-solid fa-arrow-right"></i></span>
+          </div>
+          <div class="action-card__price">
+            <span>Rp</span><strong id="workspaceTotal">0</strong>
+          </div>
+        </article>
+
+        <article class="action-card" data-nav="resources" tabindex="0" role="button" aria-label="Open Resources">
+          <div class="action-card__icon action-card__icon--muted"><i class="fa-solid fa-download"></i></div>
+          <div class="action-card__body">
+            <h2>Resources</h2>
+            <p>Drivers and useful software — only official links.</p>
+            <span class="action-card__cta">Browse Resources <i class="fa-solid fa-arrow-right"></i></span>
+          </div>
+        </article>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel__header">
+            <h3><i class="fa-solid fa-star"></i> Favorites</h3>
+            <button class="text-btn" id="manageFavBtn">Manage</button>
+          </div>
+          <div class="fav-grid" id="favGrid">
+            <!-- injected -->
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel__header">
+            <h3><i class="fa-solid fa-clock-rotate-left"></i> Recent calculations</h3>
+            <button class="text-btn" id="clearRecentBtn">Clear</button>
+          </div>
+          <ul class="recent-list" id="recentList">
+            <li class="empty-state">No recent calculations yet. Use Price Desk to start.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__header">
+          <h3><i class="fa-solid fa-keyboard"></i> Keyboard shortcuts</h3>
+        </div>
+        <div class="shortcuts">
+          <span><kbd>Ctrl</kbd> + <kbd>K</kbd> Command palette</span>
+          <span><kbd>Ctrl</kbd> + <kbd>V</kbd> Paste image</span>
+          <span><kbd>Ctrl</kbd> + <kbd>P</kbd> Print</span>
+          <span><kbd>Esc</kbd> Close modal</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUICK PRINT -->
+    <section class="page" id="page-quickprint" aria-labelledby="quickprint-title">
+      <div class="page__header">
+        <div>
+          <h1 id="quickprint-title" class="page__title">Quick Print</h1>
+          <p class="page__subtitle">Paste, drop, preview, print. No uploads. Everything stays in your browser.</p>
+        </div>
+        <div class="page__header-actions">
+          <button class="btn btn--ghost" id="qpClearBtn"><i class="fa-solid fa-trash"></i> Clear</button>
+          <button class="btn btn--primary" id="qpPrintBtn"><i class="fa-solid fa-print"></i> Print</button>
+        </div>
+      </div>
+
+      <div class="qp-layout">
+        <div class="qp-main">
+          <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Drop image or paste with Ctrl+V">
+            <div class="dropzone__idle" id="dropzoneIdle">
+              <div class="dropzone__icon"><i class="fa-solid fa-image"></i></div>
+              <h3>Paste image here</h3>
+              <p>Press <kbd>Ctrl</kbd> + <kbd>V</kbd> or drag & drop an image</p>
+              <button class="btn btn--secondary" id="chooseFileBtn"><i class="fa-solid fa-file-arrow-up"></i> Choose image</button>
+              <input type="file" id="fileInput" accept="image/*" hidden>
+              <span class="dropzone__hint">Supports PNG, JPG, WEBP • No server upload</span>
+            </div>
+            <div class="dropzone__preview" id="dropzonePreview" hidden>
+              <div class="qp-toolbar">
+                <button class="icon-btn" id="qpRotateBtn" aria-label="Rotate"><i class="fa-solid fa-rotate"></i></button>
+                <button class="icon-btn" id="qpRemoveBtn" aria-label="Remove image"><i class="fa-solid fa-trash"></i></button>
+                <span class="qp-filename" id="qpFilename"></span>
+              </div>
+              <div class="paper-stage" id="paperStage">
+                <div class="paper" id="paper">
+                  <img id="previewImg" alt="Preview">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="qp-tips">
+            <i class="fa-solid fa-circle-info"></i> Tip: Use <strong>Fill</strong> to cover the whole paper, <strong>Fit</strong> to keep full image visible. Set margins for borderless feel.
+          </div>
+        </div>
+
+        <aside class="qp-controls panel">
+          <h3>Print settings</h3>
+          <div class="control-group">
+            <label>Paper size</label>
+            <div class="segmented" role="radiogroup" aria-label="Paper size">
+              <button class="seg-btn is-active" data-paper="A4">A4</button>
+              <button class="seg-btn" data-paper="F4">F4</button>
+              <button class="seg-btn" data-paper="Letter">Letter</button>
+              <button class="seg-btn" data-paper="Legal">Legal</button>
+            </div>
+            <p class="control-hint" id="paperDesc">210 × 297 mm • Recommended for most printers</p>
+          </div>
+
+          <div class="control-group">
+            <label>Orientation</label>
+            <div class="segmented" role="radiogroup" aria-label="Orientation">
+              <button class="seg-btn is-active" data-orient="portrait"><i class="fa-solid fa-file"></i> Portrait</button>
+              <button class="seg-btn" data-orient="landscape"><i class="fa-solid fa-file" style="transform:rotate(90deg)"></i> Landscape</button>
+            </div>
+          </div>
+
+          <div class="control-grid">
+            <div class="control-group">
+              <label for="copiesInput">Copies</label>
+              <div class="number-input">
+                <button class="icon-btn small" data-step="copies" data-dir="-1"><i class="fa-solid fa-minus"></i></button>
+                <input type="number" id="copiesInput" value="1" min="1" max="99">
+                <button class="icon-btn small" data-step="copies" data-dir="1"><i class="fa-solid fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="control-group">
+              <label for="marginInput">Margin</label>
+              <select id="marginInput">
+                <option value="0">No margin</option>
+                <option value="8" selected>Small (8mm)</option>
+                <option value="12">Normal (12mm)</option>
+                <option value="20">Large (20mm)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label>Image fit</label>
+            <div class="segmented">
+              <button class="seg-btn is-active" data-fit="contain"><i class="fa-solid fa-expand"></i> Fit</button>
+              <button class="seg-btn" data-fit="cover"><i class="fa-solid fa-up-right-and-down-left-from-center"></i> Fill</button>
+            </div>
+          </div>
+
+          <div class="control-group checkbox-group">
+            <label class="checkbox"><input type="checkbox" id="grayscaleCheck"> Print in grayscale</label>
+            <label class="checkbox"><input type="checkbox" id="mirrorCheck"> Mirror image</label>
+          </div>
+
+          <button class="btn btn--primary btn--block" id="qpPrintBtn2"><i class="fa-solid fa-print"></i> Print now — Ctrl+P</button>
+          <p class="control-hint center">Uses your browser's print dialog (window.print). No data leaves your device.</p>
+
+          <div class="print-preview-note">
+            <strong>Borderless?</strong> Enable “Fit to page” and set margins to 0 in your printer dialog. Most printers need a 3–5mm bleed anyway.
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- PRICE DESK -->
+    <section class="page" id="page-pricedesk" aria-labelledby="pricedesk-title">
+      <div class="page__header">
+        <div>
+          <h1 id="pricedesk-title" class="page__title">Price Desk</h1>
+          <p class="page__subtitle">Fast cashier calculator. Tap to add, adjust qty, done.</p>
+        </div>
+        <div class="page__header-actions">
+          <button class="btn btn--ghost" id="pdUndoBtn"><i class="fa-solid fa-rotate-left"></i> Undo</button>
+          <button class="btn btn--ghost" id="pdClearBtn"><i class="fa-solid fa-trash"></i> Clear</button>
+        </div>
+      </div>
+
+      <div class="pd-layout">
+        <div class="pd-left">
+          <div class="panel">
+            <div class="panel__header">
+              <h3><i class="fa-solid fa-bolt"></i> Quick money</h3>
+              <span class="panel__hint">Tap to add to total</span>
+            </div>
+            <div class="money-grid" id="moneyGrid">
+              <!-- injected -->
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__header">
+              <h3><i class="fa-solid fa-print"></i> Printing services</h3>
+              <button class="text-btn" id="editServicesBtn"><i class="fa-solid fa-gear"></i> Edit prices</button>
+            </div>
+            <div class="service-grid" id="serviceGrid">
+              <!-- injected -->
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__header">
+              <h3>Custom amount</h3>
+            </div>
+            <div class="custom-row">
+              <input type="text" id="customName" placeholder="Item name (e.g. Jilid)" class="input">
+              <input type="number" id="customPrice" placeholder="Price" class="input" min="0" step="100">
+              <button class="btn btn--primary" id="addCustomBtn"><i class="fa-solid fa-plus"></i> Add</button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="pd-right panel pd-transaction" id="transactionPanel">
+          <div class="transaction__header">
+            <h3>Transaction</h3>
+            <span class="transaction__count" id="txCount">0 items</span>
+          </div>
+          <ul class="transaction__list" id="txList">
+            <li class="empty-state">No items yet. Tap a service or money button to start.</li>
+          </ul>
+          <div class="transaction__footer">
+            <div class="transaction__total">
+              <span>TOTAL</span>
+              <strong id="txTotal">Rp 0</strong>
+            </div>
+            <div class="transaction__actions">
+              <button class="btn btn--ghost btn--block" id="copyTotalBtn"><i class="fa-regular fa-copy"></i> Copy total</button>
+              <button class="btn btn--primary btn--block" id="saveTxBtn"><i class="fa-solid fa-floppy-disk"></i> Save &amp; clear</button>
+            </div>
+            <div class="transaction__paid">
+              <label for="paidInput">Paid</label>
+              <input type="number" id="paidInput" placeholder="Amount paid" class="input" min="0">
+              <div class="change-row">
+                <span>Change</span>
+                <strong id="changeDisplay">Rp 0</strong>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- RESOURCES -->
+    <section class="page" id="page-resources" aria-labelledby="resources-title">
+      <div class="page__header">
+        <div>
+          <h1 id="resources-title" class="page__title">Resources</h1>
+          <p class="page__subtitle">Curated drivers & tools. Only official sources. No file hosting.</p>
+        </div>
+        <div class="page__header-actions">
+          <div class="search-inline">
+            <i class="fa-solid fa-search"></i>
+            <input type="search" id="resourceSearch" placeholder="Search drivers, apps…">
+          </div>
+        </div>
+      </div>
+
+      <div class="resource-cats" id="resourceCats">
+        <button class="chip is-active" data-filter="all">All</button>
+        <button class="chip" data-filter="driver">Printer Drivers</button>
+        <button class="chip" data-filter="app">Applications</button>
+        <button class="chip" data-filter="tool">Utilities</button>
+      </div>
+
+      <div class="resource-grid" id="resourceGrid">
+        <!-- injected -->
+      </div>
+
+      <div class="panel disclaimer">
+        <i class="fa-solid fa-shield-halved"></i>
+        <p>All links point to official vendor pages. Rekaluna does not host drivers or installers. Always verify checksums for critical installs. If a link is broken, please <a href="#" data-nav="about">open an issue on GitHub</a>.</p>
+      </div>
+    </section>
+
+    <!-- SUPPORT -->
+    <section class="page" id="page-support" aria-labelledby="support-title">
+      <div class="support-wrap">
+        <div class="support-card">
+          <div class="support-card__icon"><i class="fa-solid fa-heart"></i></div>
+          <h1 id="support-title">Support Rekaluna ❤️</h1>
+          <p class="lead">Rekaluna will always remain free,<br> open-source, and ad-free.</p>
+          <p>If this project helps your daily work,<br> you can support development through<br> the QRIS code below.</p>
+          <p class="muted">There is no obligation.<br> Thank you for supporting this project.</p>
+
+          <div class="qris-box">
+            <div class="qris-placeholder" aria-label="QRIS code">
+              <div class="qris-grid">
+                <!-- generated QR-ish pattern -->
+                <div class="qris-qr">
+                  <span>QRIS</span>
+                  <div class="qr-mock"></div>
+                  <small>Scan with any e-wallet</small>
+                </div>
+              </div>
+              <p class="qris-name">Rekaluna • PT Rekaluna Open Source</p>
+              <p class="qris-id">ID • 9360 • Rekaluna</p>
+            </div>
+            <div class="qris-actions">
+              <button class="btn btn--secondary" id="copySupportBtn"><i class="fa-regular fa-copy"></i> Copy support message</button>
+              <a class="btn btn--ghost" href="https://github.com" target="_blank" rel="noopener"><i class="fa-brands fa-github"></i> Sponsor on GitHub</a>
+            </div>
+          </div>
+
+          <div class="support-stats">
+            <div><strong>100%</strong><span>Free forever</span></div>
+            <div><strong>0</strong><span>Ads</span></div>
+            <div><strong>MIT</strong><span>License</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="page" id="page-about" aria-labelledby="about-title">
+      <div class="about-wrap">
+        <div class="about-hero">
+          <span class="brand__mark">R</span>
+          <h1 id="about-title">Rekaluna</h1>
+          <p class="lead">All Your Printing Needs.</p>
+          <p class="about-tagline">The browser tab that stays open all day in a print shop.</p>
+          <div class="about-badges">
+            <span class="badge"><i class="fa-brands fa-github"></i> Open source</span>
+            <span class="badge"><i class="fa-solid fa-code"></i> Vanilla JS</span>
+            <span class="badge"><i class="fa-solid fa-hard-drive"></i> Local-first</span>
+            <span class="badge">MIT</span>
+          </div>
+        </div>
+
+        <div class="prose">
+          <h2>What is Rekaluna?</h2>
+          <p>Rekaluna is an open-source browser workspace built specifically for <strong>print shop operators</strong>. It is a lightweight collection of practical tools that help people working behind a print counter complete their daily tasks faster.</p>
+          <p><strong>Rekaluna is not</strong> a printing marketplace, not an online printing service, not a POS system, and not an admin dashboard. It is a <em>personal productivity workspace</em> — designed to be the tab you open in the morning and close at night.</p>
+
+          <h2>Motivation</h2>
+          <p>Print operators juggle image printing, price calculations, driver hunting, and customer changes all day — often with generic tools, calculator apps, and messy file explorers. Rekaluna was built by observing real counters: paste an image and print, tap prices instead of typing, find the right driver without hunting shady download sites.</p>
+
+          <h2>Philosophy</h2>
+          <ul>
+            <li><strong>Simple</strong> — every feature must be immediately understandable.</li>
+            <li><strong>Fast</strong> — minimize clicks. Tap, not type.</li>
+            <li><strong>Practical</strong> — solve real workflow problems only.</li>
+            <li><strong>Lightweight</strong> — no bloat, no frameworks, fast load.</li>
+            <li><strong>Local-first</strong> — data stays in your browser (localStorage). No accounts, no tracking.</li>
+            <li><strong>Open-source</strong> — transparent, accessible, community-friendly (MIT).</li>
+          </ul>
+
+          <h2>Features</h2>
+          <ul>
+            <li><strong>Quick Print</strong> — Ctrl+V paste, drag & drop, preview, rotate, paper sizes (A4/F4/Letter/Legal), portrait/landscape, margin, fit/fill, window.print().</li>
+            <li><strong>Price Desk</strong> — cashier-fast calculator with quick-money buttons, editable service prices, quantity controls, auto Indonesian formatting, undo/clear, local persistence, recent calculations.</li>
+            <li><strong>Resources</strong> — curated drivers (Epson, Canon, Brother, HP) and apps (Lightshot, Acrobat Reader, SumatraPDF, 7-Zip, Everything, Notepad++) linking only to official sources.</li>
+            <li><strong>Command Palette</strong> — Ctrl+K to jump anywhere. Keyboard shortcuts throughout.</li>
+          </ul>
+
+          <h2>Tech</h2>
+          <p>HTML5 • CSS3 • Vanilla JavaScript (ES6+) • Inter • Font Awesome • No frameworks, no Tailwind, no Bootstrap. Cleanly split into <code>style.css</code>, <code>components.css</code>, <code>responsive.css</code> and modules <code>app.js</code>, <code>calculator.js</code>, <code>print.js</code>, <code>storage.js</code>, <code>ui.js</code>.</p>
+
+          <h2>License</h2>
+          <p>MIT — free for personal and commercial use. See <code>LICENSE</code>.</p>
+
+          <h2>Contribute</h2>
+          <p>Found a bug? Missing driver? Price preset wrong for your region? <a href="https://github.com" target="_blank" rel="noopener">Open an issue or PR on GitHub</a>. Keep PRs focused: “Does this save time for a print shop operator?” If no, don’t build it.</p>
+
+          <div class="about-cta">
+            <a href="https://github.com" target="_blank" rel="noopener" class="btn btn--primary"><i class="fa-brands fa-github"></i> View on GitHub</a>
+            <a href="#" data-nav="support" class="btn btn--secondary"><i class="fa-solid fa-heart"></i> Support project</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Bottom nav mobile -->
+<nav class="bottom-nav" aria-label="Mobile navigation" id="bottomNav">
+  <a href="#" class="bottom-nav__item is-active" data-nav="workspace"><i class="fa-solid fa-house"></i><span>Home</span></a>
+  <a href="#" class="bottom-nav__item" data-nav="quickprint"><i class="fa-solid fa-print"></i><span>Print</span></a>
+  <a href="#" class="bottom-nav__item bottom-nav__item--fab" data-nav="pricedesk" aria-label="Price Desk"><span class="fab"><i class="fa-solid fa-calculator"></i></span></a>
+  <a href="#" class="bottom-nav__item" data-nav="resources"><i class="fa-solid fa-file-arrow-down"></i><span>Tools</span></a>
+  <a href="#" class="bottom-nav__item" data-nav="support"><i class="fa-solid fa-heart"></i><span>Support</span></a>
+</nav>
+
+<!-- Command palette -->
+<div class="command-palette" id="commandPalette" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Command palette">
+  <div class="command-palette__backdrop" id="cmdBackdrop"></div>
+  <div class="command-palette__panel">
+    <div class="command-palette__input-wrap">
+      <i class="fa-solid fa-search"></i>
+      <input type="text" id="cmdInput" placeholder="Search commands…" autocomplete="off" aria-label="Search commands">
+      <kbd>ESC</kbd>
+    </div>
+    <ul class="command-palette__list" id="cmdList" role="listbox"></ul>
+    <div class="command-palette__footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+      <span><kbd>↵</kbd> Select</span>
+      <span><kbd>Esc</kbd> Close</span>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile search sheet -->
+<div class="sheet" id="mobileSearchSheet" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Search">
+  <div class="sheet__backdrop" id="sheetBackdrop"></div>
+  <div class="sheet__panel">
+    <div class="sheet__handle"></div>
+    <div class="sheet__search">
+      <i class="fa-solid fa-search"></i>
+      <input type="text" id="mobileSearchInput" placeholder="Search tools, actions…" aria-label="Search">
+      <button class="icon-btn" id="sheetCloseBtn" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <ul class="sheet__list" id="sheetList"></ul>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal" id="settingsModal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="modal__backdrop" id="settingsBackdrop"></div>
+  <div class="modal__panel">
+    <div class="modal__header">
+      <h2><i class="fa-solid fa-gear"></i> Settings</h2>
+      <button class="icon-btn" id="settingsCloseBtn" aria-label="Close settings"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal__body">
+      <div class="setting-group">
+        <label for="settingPaper">Default paper size</label>
+        <select id="settingPaper">
+          <option value="A4">A4 (210×297)</option>
+          <option value="F4">F4 (215×330)</option>
+          <option value="Letter">Letter (216×279)</option>
+          <option value="Legal">Legal (216×356)</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label for="settingOrient">Default orientation</label>
+        <select id="settingOrient">
+          <option value="portrait">Portrait</option>
+          <option value="landscape">Landscape</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label>Theme</label>
+        <div class="segmented">
+          <button class="seg-btn is-active" data-theme="light">Light</button>
+          <button class="seg-btn" data-theme="dark">Dark</button>
+        </div>
+        <p class="control-hint">Dark mode is a soft dim — still calm & professional.</p>
+      </div>
+      <div class="setting-group">
+        <label>Preferences</label>
+        <label class="checkbox"><input type="checkbox" id="settingSound"> Subtle click sound on add (off by default)</label>
+        <label class="checkbox"><input type="checkbox" id="settingKeepTransaction" checked> Keep transaction after save (store in recents)</label>
+      </div>
+      <div class="setting-group">
+        <button class="btn btn--ghost" id="resetSettingsBtn"><i class="fa-solid fa-rotate-left"></i> Reset to defaults</button>
+        <button class="btn btn--ghost" id="clearStorageBtn"><i class="fa-solid fa-trash"></i> Clear all local data</button>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn--primary" id="saveSettingsBtn">Save settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- Service edit modal -->
+<div class="modal" id="serviceModal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Edit services">
+  <div class="modal__backdrop" id="serviceBackdrop"></div>
+  <div class="modal__panel">
+    <div class="modal__header">
+      <h2><i class="fa-solid fa-pen"></i> Edit service prices</h2>
+      <button class="icon-btn" id="serviceCloseBtn" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal__body" id="serviceModalBody">
+      <!-- injected -->
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn--ghost" id="serviceResetBtn">Reset defaults</button>
+      <button class="btn btn--primary" id="serviceSaveBtn">Save prices</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+
+<!-- Print styles: cloned paper will be printed via @media print hiding everything else; content lives in #paperStage -->
+<script src="js/storage.js"></script>
+<script src="js/calculator.js"></script>
+<script src="js/print.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
