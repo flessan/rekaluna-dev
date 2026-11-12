@@ -6,10 +6,17 @@ import { useToast } from "../lib/toast";
 import { Modal } from "../components/Modal";
 import { useI18n } from "../lib/i18n";
 
+const LINUX_SCRIPT_URL = "/install/linux/epson-l3210.sh";
+const LINUX_SCRIPT_PUBLIC_URL = "https://rekaluna.pages.dev/install/linux/epson-l3210.sh";
+const LINUX_PIPE_COMMAND = `curl -fsSL ${LINUX_SCRIPT_PUBLIC_URL} | bash`;
+const LINUX_LOCAL_COMMAND = `curl -fL ${LINUX_SCRIPT_PUBLIC_URL} -o install-epson-l3210.sh
+chmod +x install-epson-l3210.sh
+./install-epson-l3210.sh`;
+
 export default function ResourcesPage() {
   const { data, update } = useStorage();
   const toast = useToast();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("All");
   const [editing, setEditing] = useState<ResourceLink | null>(null);
@@ -71,6 +78,17 @@ export default function ResourcesPage() {
         </button>
       </div>
 
+      <LinuxPrintBanner
+        onCopy={async (command) => {
+          try {
+            await navigator.clipboard.writeText(command);
+            toast.push(t("linuxCommandCopied"));
+          } catch {
+            toast.push(t("linuxCopyFailed"));
+          }
+        }}
+      />
+
       <div className="card p-3 flex items-center gap-2">
         <Icon name="search" className="text-muted px-2" />
         <input
@@ -96,7 +114,7 @@ export default function ResourcesPage() {
             }`}
             style={{ borderColor: cat === c ? "var(--brand)" : "var(--line)" }}
           >
-            {c === "All" ? t("all") : c === "Driver" ? t("driver") : c === "PDF" ? t("pdfCategory") : c === "Image" ? t("imageCategory") : c === "Utility" ? t("utility") : c}
+            {c === "All" ? t("all") : c === "Driver" ? t("driver") : c === "PDF" ? t("pdfCategory") : c === "Image" ? t("imageCategory") : c === "Utility" ? t("utility") : c === "Printing" ? t("printing") : c}
           </button>
         ))}
       </div>
@@ -136,7 +154,7 @@ export default function ResourcesPage() {
               </div>
               {r.note && <div className="text-xs text-muted">{r.note}</div>}
               <div className="flex items-center gap-2 pt-1">
-                <span className="chip">{r.category === "Driver" ? t("driver") : r.category === "PDF" ? t("pdfCategory") : r.category === "Image" ? t("imageCategory") : r.category === "Utility" ? t("utility") : r.category}</span>
+                <span className="chip">{r.category === "Driver" ? t("driver") : r.category === "PDF" ? t("pdfCategory") : r.category === "Image" ? t("imageCategory") : r.category === "Utility" ? t("utility") : r.category === "Printing" ? t("printing") : r.category}</span>
                 <div className="flex-1" />
                 <button onClick={() => setEditing(r)} className="btn btn-ghost !py-1.5 !px-2 text-xs text-muted">
                   <Icon name="edit" /> {t("edit")}
@@ -182,6 +200,67 @@ export default function ResourcesPage() {
   );
 }
 
+function LinuxPrintBanner({ onCopy }: { onCopy: (command: string) => void }) {
+  const { t } = useI18n();
+
+  return (
+    <section className="card p-4 md:p-5 space-y-4" aria-labelledby="linux-printing-title">
+      <div className="flex flex-wrap items-start gap-3">
+        <div
+          className="w-11 h-11 rounded-xl flex items-center justify-center text-white shrink-0"
+          style={{ background: "#252a30" }}
+        >
+          <Icon name="terminal" size="lg" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="label mb-1">{t("linuxSupportEyebrow")}</div>
+          <h2 id="linux-printing-title" className="text-lg md:text-xl font-bold tracking-tight">
+            {t("linuxSupportTitle")}
+          </h2>
+          <p className="text-sm text-muted mt-1 max-w-3xl">{t("linuxSupportBody")}</p>
+        </div>
+        <span className="chip">Arch · Debian/Ubuntu · Fedora · openSUSE</span>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-3">
+        <div className="rounded-xl border p-3 min-w-0" style={{ borderColor: "var(--line)", background: "var(--canvas)" }}>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <div className="font-semibold text-sm">{t("linuxOneLineTitle")}</div>
+            <button className="btn btn-secondary !py-1.5 !px-2.5 text-xs" onClick={() => onCopy(LINUX_PIPE_COMMAND)}>
+              <Icon name="copy" /> {t("copyCommand")}
+            </button>
+          </div>
+          <pre className="text-xs leading-relaxed whitespace-pre-wrap break-all rounded-lg p-3 overflow-x-auto" style={{ background: "var(--surface)", color: "var(--ink)" }}>
+            <code>{LINUX_PIPE_COMMAND}</code>
+          </pre>
+        </div>
+
+        <div className="rounded-xl border p-3 min-w-0" style={{ borderColor: "var(--line)", background: "var(--canvas)" }}>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <div className="font-semibold text-sm">{t("linuxLocalTitle")}</div>
+            <button className="btn btn-secondary !py-1.5 !px-2.5 text-xs" onClick={() => onCopy(LINUX_LOCAL_COMMAND)}>
+              <Icon name="copy" /> {t("copyCommand")}
+            </button>
+          </div>
+          <pre className="text-xs leading-relaxed whitespace-pre-wrap break-all rounded-lg p-3 overflow-x-auto" style={{ background: "var(--surface)", color: "var(--ink)" }}>
+            <code>{LINUX_LOCAL_COMMAND}</code>
+          </pre>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <a className="btn btn-primary" href={LINUX_SCRIPT_URL} target="_blank" rel="noreferrer">
+          <Icon name="code" /> {t("viewScript")}
+        </a>
+        <p className="text-xs text-muted flex-1 min-w-[220px]">{t("linuxSafetyNote")}</p>
+      </div>
+      <p className="text-xs text-muted border-t pt-3" style={{ borderColor: "var(--line)" }}>
+        {t("linuxModelFallback")}
+      </p>
+    </section>
+  );
+}
+
 function iconFor(cat: string) {
   switch (cat) {
     case "PDF":
@@ -190,6 +269,8 @@ function iconFor(cat: string) {
       return "image";
     case "Driver":
       return "download";
+    case "Printing":
+      return "print";
     default:
       return "link";
   }
