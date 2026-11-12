@@ -44,6 +44,7 @@ interface DragState {
   cropY: number;
   selectedIds: string[];
   initialObjects: CanvasObject[];
+  resizeHandle?: "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 }
 
 interface MarqueeState {
@@ -350,10 +351,15 @@ export default function QuickPrintPage() {
       .sort((a, b) => b.zIndex - a.zIndex)[0] ?? null;
   }, [previewScale]);
 
-  const startDrag = (event: ReactPointerEvent<HTMLDivElement>, item: CanvasObject, mode: "move" | "resize" = "move") => {
+  const startDrag = (
+    event: ReactPointerEvent<HTMLElement>,
+    item: CanvasObject,
+    mode: "move" | "resize" = "move",
+    resizeHandle: DragState["resizeHandle"] = "se",
+  ) => {
     event.stopPropagation();
     if (event.button !== 0) return;
-    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+    if (mode === "move" && (event.ctrlKey || event.metaKey || event.shiftKey)) {
       event.preventDefault();
       const nextIds = event.shiftKey
         ? (selectedIds.includes(item.id) ? selectedIds : [...selectedIds, item.id])
@@ -376,6 +382,7 @@ export default function QuickPrintPage() {
       clientX: event.clientX, clientY: event.clientY,
       x: item.x, y: item.y, width: item.width, height: item.height,
       cropX: item.cropX, cropY: item.cropY, selectedIds: ids, initialObjects: objectsRef.current,
+      resizeHandle,
     };
   };
 
@@ -400,9 +407,19 @@ export default function QuickPrintPage() {
     const current = objectsRef.current, item = current.find((object) => object.id === drag.id);
     if (!item) return;
     if (drag.mode === "resize") {
-      const width = clamp(drag.width + dx, 8, paperWidth - item.x);
-      const height = clamp(drag.height + dy, 8, paperHeight - item.y);
-      replaceWithoutHistory(current.map((object) => object.id === drag.id ? { ...object, width, height } : object));
+      const handle = drag.resizeHandle ?? "se";
+      let x = drag.x, y = drag.y, width = drag.width, height = drag.height;
+      if (handle.includes("e")) width = clamp(drag.width + dx, 8, paperWidth - drag.x);
+      if (handle.includes("s")) height = clamp(drag.height + dy, 8, paperHeight - drag.y);
+      if (handle.includes("w")) {
+        x = clamp(drag.x + dx, 0, drag.x + drag.width - 8);
+        width = drag.width - (x - drag.x);
+      }
+      if (handle.includes("n")) {
+        y = clamp(drag.y + dy, 0, drag.y + drag.height - 8);
+        height = drag.height - (y - drag.y);
+      }
+      replaceWithoutHistory(current.map((object) => object.id === drag.id ? { ...object, x, y, width, height } : object));
       setGuides({ x: null, y: null }); return;
     }
     if (drag.mode === "crop") {
@@ -1157,19 +1174,26 @@ export default function QuickPrintPage() {
                     {active && (
                       <>
                         <div className="absolute inset-0 pointer-events-none no-print" style={{ border: "1px solid #9C1C26", borderRadius: shape.borderRadius }} />
-                        {selectedCount <= 1 && <button
-                          type="button"
-                          className="absolute -top-2 -left-2 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] no-print"
-                          style={{ background: "#9C1C26" }}
-                          onPointerDown={(event) => event.stopPropagation()}
-                          onClick={(event) => { event.stopPropagation(); deleteSelected(); }}
-                          aria-label={t("delete")}
-                        ><Icon name="xmark" size="2xs" /></button>}
-                        {selectedCount <= 1 && <div
-                          className="absolute -bottom-2 -right-2 w-4 h-4 rounded-sm border-2 border-white no-print"
-                          style={{ background: "#9C1C26", cursor: "nwse-resize", touchAction: "none" }}
-                          onPointerDown={(event) => startDrag(event, item, "resize")}
-                        />}
+                        {selectedCount <= 1 && ([
+                          { id: "nw", style: { left: "-5px", top: "-5px", cursor: "nwse-resize" } },
+                          { id: "n", style: { left: "calc(50% - 5px)", top: "-5px", cursor: "ns-resize" } },
+                          { id: "ne", style: { right: "-5px", top: "-5px", cursor: "nesw-resize" } },
+                          { id: "e", style: { right: "-5px", top: "calc(50% - 5px)", cursor: "ew-resize" } },
+                          { id: "se", style: { right: "-5px", bottom: "-5px", cursor: "nwse-resize" } },
+                          { id: "s", style: { left: "calc(50% - 5px)", bottom: "-5px", cursor: "ns-resize" } },
+                          { id: "sw", style: { left: "-5px", bottom: "-5px", cursor: "nesw-resize" } },
+                          { id: "w", style: { left: "-5px", top: "calc(50% - 5px)", cursor: "ew-resize" } },
+                        ] as const).map((handle) => (
+                          <button
+                            key={handle.id}
+                            type="button"
+                            className="absolute w-[10px] h-[10px] rounded-[3px] border-2 border-white bg-[color:var(--brand)] shadow-sm no-print"
+                            style={{ ...handle.style, touchAction: "none" }}
+                            onPointerDown={(event) => startDrag(event, item, "resize", handle.id)}
+                            aria-label={t("resize")}
+                            title={t("resize")}
+                          />
+                        ))}
                       </>
                     )}
                   </div>
