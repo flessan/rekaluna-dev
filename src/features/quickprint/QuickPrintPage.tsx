@@ -228,7 +228,7 @@ export default function QuickPrintPage() {
 
           if (frameTarget) {
             const filled = current.map((item) => item.id === frameTarget.id
-              ? { ...item, src, name: file.name || t("image"), naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight, fit: "cover", cropScale: 1, cropX: 50, cropY: 50 }
+              ? { ...item, src, name: file.name || t("image"), naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight, fit: "cover" as ImageFit, cropScale: 1, cropX: 50, cropY: 50 }
               : item);
             commit(filled);
             setSelectedId(frameTarget.id);
@@ -406,7 +406,7 @@ export default function QuickPrintPage() {
     const target = dropTargetId ? finalObjects.find((object) => object.id === dropTargetId && object.kind === "frame") : null;
     if (drag.mode === "move" && drag.selectedIds.length === 1 && source?.src && target && source.id !== target.id) {
       finalObjects = finalObjects.filter((object) => object.id !== source.id).map((object) => object.id === target.id
-        ? { ...object, src: source.src, name: source.name, naturalWidth: source.naturalWidth, naturalHeight: source.naturalHeight, fit: "cover", cropScale: 1, cropX: 50, cropY: 50 }
+        ? { ...object, src: source.src, name: source.name, naturalWidth: source.naturalWidth, naturalHeight: source.naturalHeight, fit: "cover" as ImageFit, cropScale: 1, cropX: 50, cropY: 50 }
         : object);
       setSelectedId(target.id); setSelectedIds([target.id]);
     }
