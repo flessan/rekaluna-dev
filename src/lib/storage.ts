@@ -82,12 +82,22 @@ const DEFAULT_SERVICES: Service[] = [
 
 const DEFAULT_RESOURCES: ResourceLink[] = [
   { id: "res-epson-download-printer-driver", name: "Epson Download Printer Driver", url: "https://www.epson.co.id/Support/Printers/sh/s1", category: "Driver" },
+  { id: "res-epson-l3210-linux", name: "Epson EcoTank L3210 Support", url: "https://www.epson.co.id/Printer-InkTank/L-Series/Epson-EcoTank-L3210/s/SPT_C11CJ68501", category: "Driver", note: "Official Linux printer and scanner downloads." },
+  { id: "res-epson-linux-download-center", name: "Epson Linux Driver Download Center", url: "https://download.ebz.epson.net/dsc/search/01/search/?OSC=LX", category: "Driver", note: "Official ESC/P-R, ESC/P-R 2, and Linux utilities." },
   { id: "res-canon-download-printer-driver", name: "Canon Download Printer Driver", url: "https://id.canon/en/support/download", category: "Driver" },
   { id: "res-hp-download-printer-driver", name: "HP Download Printer Driver", url: "https://support.hp.com/drivers/printers", category: "Driver" },
+  { id: "res-brother-linux-drivers", name: "Brother Linux Driver Downloads", url: "https://support.brother.com/g/b/downloadtop.aspx", category: "Driver", note: "Select your printer model and Linux distribution." },
+  { id: "res-openprinting-printer-db", name: "OpenPrinting Printer Database", url: "https://openprinting.org/printers", category: "Driver", note: "Check Linux printer compatibility and available drivers." },
+  { id: "res-gutenprint", name: "Gutenprint", url: "https://gimp-print.sourceforge.io/", category: "Driver", note: "Open-source printer drivers for many inkjet and photo printers." },
+  { id: "res-cups-local", name: "CUPS Web Interface", url: "http://localhost:631", category: "Printing", note: "Manage printer queues, jobs, and printer administration on this device." },
+  { id: "res-openprinting-cups", name: "CUPS Documentation", url: "https://openprinting.github.io/cups/", category: "Printing", note: "Documentation for the Common UNIX Printing System." },
+  { id: "res-paper-sizes", name: "Paper Sizes Reference", url: "https://papersizes.io/", category: "Printing", note: "Check ISO, US, and other paper dimensions before printing." },
   { id: "res-ilovepdf", name: "iLovePDF", url: "https://www.ilovepdf.com/", category: "PDF" },
   { id: "res-smallpdf", name: "Smallpdf", url: "https://smallpdf.com/", category: "PDF" },
-  { id: "res-tinypng", name: "TinyPNG", url: "https://tinypng.com/", category: "Image" },
-  { id: "res-removebg", name: "Remove.bg", url: "https://www.remove.bg/", category: "Image" },
+  { id: "res-pdfarranger", name: "PDF Arranger", url: "https://github.com/pdfarranger/pdfarranger", category: "PDF", note: "Desktop tool to merge, split, rotate, crop, and rearrange PDF pages." },
+  { id: "res-pdfsam-basic", name: "PDFsam Basic", url: "https://pdfsam.org/pdfsam-basic/", category: "PDF", note: "Merge, split, extract, rotate, and reorder PDF pages." },
+  { id: "res-qpdf", name: "qpdf", url: "https://qpdf.sourceforge.io/", category: "PDF", note: "Command-line PDF inspection and transformation utility." },
+  { id: "res-ghostscript", name: "Ghostscript", url: "https://ghostscript.readthedocs.io/", category: "PDF", note: "PDF and PostScript processing tools for advanced print workflows." },
   { id: "res-lightshot", name: "Lightshot Screenshot", url: "https://app.prntscr.com/", category: "Utility" },
   { id: "res-qrconvert", name: "QR Code Generator", url: "https://www.qr-code-generator.com/", category: "Utility" },
 ];
@@ -133,7 +143,13 @@ function read(): AppData {
       services: parsed.services && parsed.services.length ? parsed.services : DEFAULT_SERVICES,
       favorites: parsed.favorites ?? DEFAULT_FAVORITES,
       recents: parsed.recents ?? [],
-      resources: parsed.resources ?? DEFAULT_RESOURCES,
+      // Add newly curated resources without replacing the user's saved links.
+      resources: parsed.resources
+        ? [
+            ...DEFAULT_RESOURCES.filter((item) => !parsed.resources?.some((saved) => saved.id === item.id)),
+            ...parsed.resources,
+          ]
+        : DEFAULT_RESOURCES,
     };
   } catch {
     return structuredClone(DEFAULT_DATA);
