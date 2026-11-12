@@ -40,7 +40,7 @@ log "Preparing CUPS and printer support for ${PRETTY_NAME:-$DISTRO_ID}."
 
 install_arch() {
   command -v pacman >/dev/null 2>&1 || die "pacman was not found."
-  as_root pacman -S --needed --noconfirm cups cups-filters ghostscript gutenprint system-config-printer
+  as_root pacman -S --needed --noconfirm base-devel cups cups-filters ghostscript gutenprint system-config-printer
 
   if command -v yay >/dev/null 2>&1; then
     log "Installing the Epson ESC/P-R driver with yay."
