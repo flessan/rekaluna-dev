@@ -15,7 +15,7 @@ function greetingKey() {
 
 const QUICK = [
   { to: "/print", label: "quickPrint", icon: "print", desc: "quickPrintDesc" },
-  { to: "/price", label: "Price Desk", icon: "calculator", desc: "Answer 'How much?' fast." },
+  { to: "/price", label: "priceDesk", icon: "calculator", desc: "priceDeskDesc" },
   { to: "/resources", label: "resources", icon: "folder", desc: "resourcesDesc" },
   { to: "/support", label: "support", icon: "heart", desc: "supportDesc" },
 ];

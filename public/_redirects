@@ -1,0 +1,2 @@
+# Route the extensionless donation URL to its static directory page.
+/donate /donate/ 301

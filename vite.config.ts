@@ -38,6 +38,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2,ico}"],
+        // Keep the standalone donation page out of the SPA navigation fallback.
+        navigateFallbackDenylist: [/^\/donate(?:\/.*)?$/],
       },
     }),
   ],
