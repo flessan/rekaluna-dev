@@ -32,6 +32,16 @@ function App() {
     initTheme();
   }, []);
 
+  // Close modal on route change
+  useEffect(() => {
+    setModal(null);
+  }, [loc.pathname]);
+
+  // Scroll to top on route change
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [loc.pathname]);
+
   // Keep /donate available even when the host serves the SPA fallback instead
   // of the static public/donate/index.html file.
   if (loc.pathname === "/donate" || loc.pathname === "/donate/") {
@@ -62,16 +72,6 @@ function App() {
       </main>
     );
   }
-
-  // Close modal on route change
-  useEffect(() => {
-    setModal(null);
-  }, [loc.pathname]);
-
-  // Scroll to top on route change
-  useEffect(() => {
-    window.scrollTo({ top: 0 });
-  }, [loc.pathname]);
 
   const openModal = (id: string) => setModal(id);
   const closeModal = () => setModal(null);
