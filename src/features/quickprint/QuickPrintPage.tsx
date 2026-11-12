@@ -1408,6 +1408,10 @@ export default function QuickPrintPage() {
             </div>
             {!selected ? (
               <p className="text-sm text-muted">{t("noSelection")}</p>
+            ) : selectedCount > 1 ? (
+              <p className="rounded-lg p-3 text-xs text-muted leading-relaxed" style={{ background: "var(--canvas)" }}>
+                {t("multipleSelectionHint")}
+              </p>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-2">
@@ -1482,7 +1486,7 @@ export default function QuickPrintPage() {
                   <button
                     key={item.id}
                     draggable
-                    onClick={() => { setSelectedId(item.id); setSelectedIds([item.id]); setInspectorTab("position"); }}
+                    onClick={() => { setSelectedId(item.id); setSelectedIds([item.id]); }}
                     onDragStart={(event) => {
                       event.dataTransfer.setData("text/plain", item.id);
                       event.dataTransfer.effectAllowed = "move";
