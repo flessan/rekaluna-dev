@@ -24,21 +24,22 @@ It replaces the dozen tabs and utilities that operators juggle all day with one
 focused app: quick printing, a lightning-fast price desk, and a curated resource
 center for drivers and PDF tools.
 
-- Paste an image (`Ctrl+V`), preview it on paper, and print — no upload.
+- Arrange multiple images on one sheet, drag them into place, snap-align, and print - no upload.
 - Tap quick money buttons, tweak quantities, and answer "How much?" in seconds.
 - Pin your favorite tools and resources. Everything is stored on your device.
 - Works offline. Install it as a PWA. No account. No server. No tracking.
 
 ## Sections
 
-- **Workspace** — greeting, quick actions, favorites, recent activity.
-- **Quick Print** — paste/drop/select an image; choose paper, orientation,
-  copies, scaling, margin; print with the native browser dialog.
-- **Price Desk** — large money buttons, service chips, live totals, cash/change
+- **Workspace** - greeting, quick actions, favorites, recent activity.
+- **Quick Print** - multi-image sheet editor with drag-and-drop, snap guides, millimeter positioning, group selection, keyboard editing, crop/pan controls, and square/rounded/circle/oval frames. Choose one shape for both quick layouts and newly added frames, so the toolbar has one shape selector. Circle layouts and edited circle frames stay truly circular. Drag an existing image onto a frame to fill it. Right-click objects for crop, fit/fill, replace, rotate, layer order, duplicate, copy/cut, and delete actions. Includes a custom paper background palette and isolated sheet-only printing.
+- **Price Desk** - large money buttons, service chips, live totals, cash/change
   mode, undo/duplicate/clear, custom items.
-- **Resource Center** — drivers, PDF tools, image tools, and utilities. Add your own.
-- **Support** — optional donation via QRIS. No pressure.
-- **About** — philosophy, tech stack, license, contribution info.
+- **Resource Center** - drivers, PDF tools, image tools, and utilities. Add your own.
+- **Support** - optional donation via QRIS. No pressure.
+- **Donate** - `/donate` displays the supplied QRIS SVG directly, without the app navigation or other page UI.
+- **About** - philosophy, tech stack, license, contribution info.
+- **Languages** - English and Bahasa Indonesia, with a saved language preference.
 
 ## Keyboard workflow (desktop)
 
@@ -46,8 +47,17 @@ center for drivers and PDF tools.
 | ------------ | --------------------------- |
 | `Ctrl + K`   | Open command palette        |
 | `Ctrl + V`   | Paste image into Quick Print |
-| `Ctrl + P`   | Trigger print (when image is loaded) |
+| `Ctrl + P`   | Print the current sheet |
 | `Esc`        | Close modals / sheets       |
+| `← ↑ → ↓`    | Move the selected object by 1 mm |
+| `Alt + arrows` | Fine movement by 0.1 mm |
+| `Shift + arrows` | Move by 10 mm |
+| `Ctrl + A`   | Select all canvas objects   |
+| `Ctrl + C` / `Ctrl + X` / `Ctrl + V` | Copy / cut / paste objects |
+| `Ctrl + D`   | Duplicate selected object(s) |
+| `Shift + click` / `Ctrl + click` | Add / toggle multi-selection |
+| `Right click` | Open the object context menu |
+| `Ctrl + Z` / `Ctrl + Shift + Z` | Undo / redo canvas edits |
 | `↑ ↓` `↵`    | Navigate lists / run command |
 
 ## Design
@@ -57,6 +67,12 @@ center for drivers and PDF tools.
 - Icons: Font Awesome solid + regular.
 - Desktop: sidebar nav, top toolbar, dense workspace.
 - Mobile: bottom nav, FAB, bottom sheets, rounded surfaces, touch-first targets.
+
+## Browser and Linux support
+
+- Rekaluna is a browser app and has no Arch-specific runtime package. It is intended for current desktop Firefox and Chromium-based browsers on Windows, macOS, and Linux, including Arch Linux.
+- On Firefox under some Linux Wayland desktop setups, dragging files from the desktop into a browser tab can be affected by browser / desktop integration. Use **Add images** to open the native file picker, or paste an image with `Ctrl + V` as a fallback.
+- For print accuracy, select the paper size that matches the printer, use 100% scale when exact millimeter dimensions matter, and enable background graphics when printing a custom paper color. Browser and printer preferences can override background-color output.
 
 ## Development
 
@@ -77,7 +93,7 @@ npm run lint     # oxlint
 - [React Router](https://reactrouter.com/)
 - [Font Awesome](https://fontawesome.com/)
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) for offline/PWA support
-- Plain `localStorage` — no backend, no accounts, no telemetry
+- Plain `localStorage` - no backend, no accounts, no telemetry
 
 ### Project layout
 
@@ -88,6 +104,7 @@ src/
     quickprint/      Quick Print page
     pricedesk/       Price Desk page
   lib/
+    i18n.tsx         English / Indonesian locale provider
     storage.ts       Centralized localStorage layer
     storage-hooks.ts React bindings
     commands.tsx     Command palette + registry
@@ -109,7 +126,7 @@ to back up or move between machines.
 ## Contributing
 
 Issues, translations, ideas, and pull requests are welcome. This is built for
-real print operators — feedback from shop floors shapes the roadmap.
+real print operators - feedback from shop floors shapes the roadmap.
 
 1. Fork the repo
 2. Create a branch (`git checkout -b feature/your-idea`)

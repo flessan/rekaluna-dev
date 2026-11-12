@@ -23,6 +23,9 @@ import {
   faCheck,
   faChevronRight,
   faChevronLeft,
+  faChevronUp,
+  faChevronDown,
+  faObjectGroup,
   faPaperPlane,
   faUndo,
   faPenToSquare,
@@ -57,6 +60,7 @@ import {
   faEyeSlash,
   faGripVertical,
   faShareNodes,
+  faScissors,
 } from "@fortawesome/free-solid-svg-icons";
 import { faBookmark, faClock } from "@fortawesome/free-regular-svg-icons";
 
@@ -90,6 +94,12 @@ const iconMap: Record<string, IconDefinition> = {
   check: faCheck,
   "chevron-right": faChevronRight,
   "chevron-left": faChevronLeft,
+  "chevron-up": faChevronUp,
+  "chevron-down": faChevronDown,
+  frame: faObjectGroup,
+  "object-group": faObjectGroup,
+  crop: faExpand,
+  scissors: faScissors,
   send: faPaperPlane,
   undo: faUndo,
   edit: faPenToSquare,

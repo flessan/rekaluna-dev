@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Icon } from "./icons";
 import { useStorage } from "./storage-hooks";
 import { storage } from "./storage";
+import { useI18n } from "./i18n";
 
 export interface Command {
   id: string;
@@ -104,24 +105,33 @@ export function CommandProvider({
   );
 
   const { data } = useStorage();
+  const { t, locale } = useI18n();
+  const requestSheetPrint = useCallback(() => {
+    setOpen(false);
+    if (window.location.pathname === "/print") {
+      window.dispatchEvent(new CustomEvent("rekaluna:print-sheet"));
+      return;
+    }
+    navigate("/print");
+  }, [navigate]);
   const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
 
   // Register global commands + resources
   useEffect(() => {
     const builtins: Command[] = [
-      { id: "go-workspace", label: "Go to Workspace", icon: "house", group: "Navigation", run: (c) => c.navigate("/") },
-      { id: "go-print", label: "Open Quick Print", icon: "print", group: "Navigation", keywords: ["print", "cetak", "image"], run: (c) => c.navigate("/print") },
-      { id: "go-price", label: "Open Price Desk", icon: "calculator", group: "Navigation", keywords: ["price", "harga", "cash"], run: (c) => c.navigate("/price") },
-      { id: "go-resources", label: "Open Resource Center", icon: "folder", group: "Navigation", keywords: ["resources", "driver", "pdf"], run: (c) => c.navigate("/resources") },
-      { id: "go-support", label: "Open Support / Donate", icon: "heart", group: "Navigation", keywords: ["donate", "support"], run: (c) => c.navigate("/support") },
-      { id: "go-about", label: "About Rekaluna", icon: "info", group: "Navigation", run: (c) => c.navigate("/about") },
-      { id: "open-settings", label: "Open Settings", icon: "gear", group: "App", keywords: ["settings", "preferences"], run: (c) => c.openModal("settings") },
-      { id: "trigger-print", label: "Trigger Print (Ctrl+P)", icon: "print", group: "Quick Actions", run: () => setTimeout(() => window.print(), 50) },
-      { id: "paste-image", label: "Paste image to Quick Print", icon: "paste", group: "Quick Actions", keywords: ["clipboard", "paste"], run: (c) => c.navigate("/print") },
+      { id: "go-workspace", label: t("goWorkspace"), icon: "house", group: t("navigation"), run: (c) => c.navigate("/") },
+      { id: "go-print", label: t("openQuickPrint"), icon: "print", group: t("navigation"), keywords: ["print", "cetak", "image"], run: (c) => c.navigate("/print") },
+      { id: "go-price", label: t("openPriceDesk"), icon: "calculator", group: t("navigation"), keywords: ["price", "harga", "cash"], run: (c) => c.navigate("/price") },
+      { id: "go-resources", label: t("openResourceCenter"), icon: "folder", group: t("navigation"), keywords: ["resources", "driver", "pdf"], run: (c) => c.navigate("/resources") },
+      { id: "go-support", label: t("openSupportDonate"), icon: "heart", group: t("navigation"), keywords: ["donate", "support"], run: (c) => c.navigate("/support") },
+      { id: "go-about", label: t("aboutRekalunaCommand"), icon: "info", group: t("navigation"), run: (c) => c.navigate("/about") },
+      { id: "open-settings", label: t("openSettings"), icon: "gear", group: t("appGroup"), keywords: ["settings", "preferences"], run: (c) => c.openModal("settings") },
+      { id: "trigger-print", label: t("triggerPrintCommand"), icon: "print", group: t("quickActionsGroup"), run: requestSheetPrint },
+      { id: "paste-image", label: t("pasteImageCommand"), icon: "paste", group: t("quickActionsGroup"), keywords: ["clipboard", "paste"], run: (c) => c.navigate("/print") },
     ];
     const unsubs = builtins.map((b) => registry.register(b));
     return () => unsubs.forEach((u) => u());
-  }, []);
+  }, [locale, requestSheetPrint, t]);
 
   // Register resources as commands
   useEffect(() => {
@@ -131,7 +141,7 @@ export function CommandProvider({
         label: `Open ${r.name}`,
         hint: r.category,
         icon: r.category === "PDF" ? "file-pdf" : r.category === "Driver" ? "download" : r.category === "Image" ? "image" : "link",
-        group: "Resources",
+        group: t("resourcesGroup"),
         keywords: [r.category, r.name],
         run: (c) => c.openUrl(r.url),
       })
@@ -139,9 +149,9 @@ export function CommandProvider({
     const favs = data.favorites.map((f) =>
       registry.register({
         id: `fav-${f.id}`,
-        label: `Favorite: ${f.label}`,
+        label: `${t("favorite")}: ${f.label}`,
         icon: f.icon,
-        group: "Favorites",
+        group: t("favoritesGroup"),
         run: (c) => {
           if (f.kind === "tool" || f.kind === "action") c.navigate(f.target);
           else c.openUrl(f.target);
@@ -152,7 +162,7 @@ export function CommandProvider({
       unsubs.forEach((u) => u());
       favs.forEach((u) => u());
     };
-  }, [data.resources, data.favorites]);
+  }, [data.resources, data.favorites, locale, t]);
 
   const open = useCallback(() => {
     if (isMobile) {
@@ -179,13 +189,16 @@ export function CommandProvider({
         } else {
           open();
         }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        requestSheetPrint();
       } else if (e.key === "Escape" && isOpen) {
         close();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, close, isOpen, isMobile, openModal]);
+  }, [open, close, isOpen, isMobile, openModal, requestSheetPrint]);
 
   const results = useMemo(() => registry.search(query), [query]);
 
@@ -222,7 +235,7 @@ export function CommandProvider({
           onClick={close}
           role="dialog"
           aria-modal="true"
-          aria-label="Command palette"
+          aria-label={t("commandPalette")}
         >
           <div
             className="card w-full max-w-xl mx-4 overflow-hidden shadow-pop"
@@ -235,16 +248,16 @@ export function CommandProvider({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={onKeyDown}
-                placeholder="Search Rekaluna…"
+                placeholder={t("searchRekaluna")}
                 className="flex-1 bg-transparent outline-none text-sm num"
-                aria-label="Search"
+                aria-label={t("search")}
               />
               <span className="kbd">ESC</span>
             </div>
             <div className="max-h-[50vh] overflow-auto py-1">
               {results.length === 0 && (
                 <div className="px-4 py-8 text-center text-sm text-muted">
-                  No matches. Try <span className="num">print</span>, <span className="num">price</span>, or <span className="num">epson</span>.
+                  {t("noMatchesTry")}
                 </div>
               )}
               {results.map((c, i) => (
@@ -281,11 +294,11 @@ export function CommandProvider({
               style={{ borderColor: "var(--line)" }}
             >
               <span className="flex items-center gap-2">
-                <span className="kbd">↑↓</span> navigate
-                <span className="kbd">↵</span> run
+                <span className="kbd">↑↓</span> {t("navigate").toLowerCase()}
+                <span className="kbd">↵</span> {t("runCommand")}
                 <span className="kbd">Ctrl K</span> open
               </span>
-              <span>Rekaluna commands</span>
+              <span>{t("commandPalette")}</span>
             </div>
           </div>
         </div>

@@ -2,16 +2,17 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Icon } from "../lib/icons";
 import { useCommandPalette } from "../lib/commands";
 import clsx from "clsx";
+import { useI18n } from "../lib/i18n";
 import type { ReactNode } from "react";
 
 const NAV = [
-  { to: "/", label: "Workspace", icon: "house" },
-  { to: "/print", label: "Quick Print", icon: "print" },
-  { to: "/price", label: "Price Desk", icon: "calculator" },
-  { to: "/resources", label: "Resources", icon: "folder" },
-  { to: "/support", label: "Support", icon: "heart" },
-  { to: "/about", label: "About", icon: "circle-info" },
-];
+  { to: "/", label: "workspace", icon: "house" },
+  { to: "/print", label: "quickPrint", icon: "print" },
+  { to: "/price", label: "priceDesk", icon: "calculator" },
+  { to: "/resources", label: "resources", icon: "folder" },
+  { to: "/support", label: "support", icon: "heart" },
+  { to: "/about", label: "about", icon: "circle-info" },
+] as const;
 
 export function AppShell({
   children,
@@ -23,8 +24,9 @@ export function AppShell({
   const loc = useLocation();
   const nav = useNavigate();
   const palette = useCommandPalette();
+  const { t } = useI18n();
   const currentTitle =
-    NAV.find((n) => n.to === loc.pathname)?.label ?? "Rekaluna";
+    t(NAV.find((n) => n.to === loc.pathname)?.label ?? "workspace");
 
   return (
     <div className="min-h-full flex flex-col">
@@ -38,11 +40,11 @@ export function AppShell({
             </div>
             <div>
               <div className="font-bold tracking-tight leading-none">Rekaluna</div>
-              <div className="text-[11px] text-muted mt-0.5">Print workspace</div>
+              <div className="text-[11px] text-muted mt-0.5">{t("printWorkspace")}</div>
             </div>
           </div>
           <nav className="px-3 flex-1">
-            <div className="px-2 pt-2 pb-1 label">Navigate</div>
+            <div className="px-2 pt-2 pb-1 label">{t("navigate")}</div>
             <ul className="space-y-0.5">
               {NAV.map((n) => (
                 <li key={n.to}>
@@ -59,18 +61,18 @@ export function AppShell({
                     }
                   >
                     <Icon name={n.icon} />
-                    <span>{n.label}</span>
+                    <span>{t(n.label)}</span>
                   </NavLink>
                 </li>
               ))}
             </ul>
-            <div className="px-2 pt-5 pb-1 label">Quick</div>
+            <div className="px-2 pt-5 pb-1 label">{t("quick")}</div>
             <button
               onClick={() => palette.open()}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-[rgba(26,26,27,0.04)] text-left"
             >
               <Icon name="magnifying-glass" />
-              <span className="flex-1">Search commands</span>
+              <span className="flex-1">{t("searchCommands")}</span>
               <span className="kbd">Ctrl K</span>
             </button>
           </nav>
@@ -80,10 +82,10 @@ export function AppShell({
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-[rgba(26,26,27,0.04)]"
             >
               <Icon name="gear" />
-              Settings
+              {t("settings")}
             </button>
             <div className="px-3 pt-3 text-[11px] text-muted leading-relaxed">
-              Local-first · Offline ready · No account
+              {t("localFirst")}
             </div>
           </div>
         </aside>
@@ -104,20 +106,20 @@ export function AppShell({
               style={{ borderColor: "var(--line)", background: "var(--surface)" }}
             >
               <Icon name="search" size="sm" />
-              <span className="flex-1 text-left">Search Rekaluna…</span>
+              <span className="flex-1 text-left">{t("searchRekaluna")}</span>
               <span className="kbd">Ctrl K</span>
             </button>
             <button
               onClick={() => nav("/print")}
               className="btn btn-primary"
-              title="Quick Print"
+              title={t("quickPrint")}
             >
-              <Icon name="print" /> Quick Print
+              <Icon name="print" /> {t("quickPrint")}
             </button>
             <button
               onClick={() => onOpenModal("settings")}
               className="btn btn-ghost !p-2"
-              aria-label="Settings"
+              aria-label={t("settings")}
             >
               <Icon name="gear" />
             </button>
@@ -140,7 +142,7 @@ export function AppShell({
             onClick={() => palette.open()}
             className="w-9 h-9 rounded-lg flex items-center justify-center border"
             style={{ borderColor: "var(--line)", background: "var(--surface)" }}
-            aria-label="Search"
+            aria-label={t("search")}
           >
             <Icon name="search" />
           </button>
@@ -148,7 +150,7 @@ export function AppShell({
             onClick={() => onOpenModal("settings")}
             className="w-9 h-9 rounded-lg flex items-center justify-center border"
             style={{ borderColor: "var(--line)", background: "var(--surface)" }}
-            aria-label="Settings"
+            aria-label={t("settings")}
           >
             <Icon name="gear" />
           </button>
@@ -163,7 +165,7 @@ export function AppShell({
             onClick={() => nav("/print")}
             className="fixed z-30 right-4 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] w-14 h-14 rounded-full text-white shadow-pop flex items-center justify-center active:scale-95 transition-snappy"
             style={{ background: "var(--brand)" }}
-            aria-label="Quick Print"
+            aria-label={t("quickPrint")}
           >
             <Icon name="print" size="lg" />
           </button>
@@ -173,7 +175,7 @@ export function AppShell({
             onClick={() => window.dispatchEvent(new CustomEvent("rekaluna:add-resource"))}
             className="fixed z-30 right-4 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] w-14 h-14 rounded-full text-white shadow-pop flex items-center justify-center active:scale-95 transition-snappy"
             style={{ background: "var(--brand)" }}
-            aria-label="Add resource"
+            aria-label={t("addImage")}
           >
             <Icon name="plus" size="lg" />
           </button>
@@ -185,11 +187,11 @@ export function AppShell({
           style={{ borderColor: "var(--line)", background: "var(--surface)", paddingBottom: "env(safe-area-inset-bottom)" }}
         >
           {[
-            { to: "/", label: "Home", icon: "house" },
-            { to: "/print", label: "Print", icon: "print" },
-            { to: "/price", label: "Price", icon: "calculator" },
-            { to: "/resources", label: "Tools", icon: "folder" },
-            { to: "/__more", label: "More", icon: "bars" },
+            { to: "/", label: "home", icon: "house" },
+            { to: "/print", label: "print", icon: "print" },
+            { to: "/price", label: "price", icon: "calculator" },
+            { to: "/resources", label: "tools", icon: "folder" },
+            { to: "/__more", label: "more", icon: "bars" },
           ].map((n) => {
             const isActive = n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
             // "More" opens a sheet instead of navigating
@@ -201,7 +203,7 @@ export function AppShell({
                   className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] text-muted"
                 >
                   <Icon name="bars" className="text-lg" />
-                  <span>More</span>
+                  <span>{t("more")}</span>
                 </button>
               );
             }
@@ -216,7 +218,7 @@ export function AppShell({
                 )}
               >
                 <Icon name={n.icon} className="text-lg" />
-                <span>{n.label}</span>
+                <span>{t(n.label as any)}</span>
               </NavLink>
             );
           })}

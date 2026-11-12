@@ -4,10 +4,12 @@ import { useStorage } from "../lib/storage-hooks";
 import { storage, uid, type ResourceLink } from "../lib/storage";
 import { useToast } from "../lib/toast";
 import { Modal } from "../components/Modal";
+import { useI18n } from "../lib/i18n";
 
 export default function ResourcesPage() {
   const { data, update } = useStorage();
   const toast = useToast();
+  const { t } = useI18n();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("All");
   const [editing, setEditing] = useState<ResourceLink | null>(null);
@@ -42,7 +44,7 @@ export default function ResourcesPage() {
             ],
       };
     });
-    toast.push(isFav(r.id) ? "Removed from favorites" : "Added to favorites");
+    toast.push(isFav(r.id) ? t("removedFavorite") : t("addedFavorite"));
   };
 
   const openResource = (r: ResourceLink) => {
@@ -61,11 +63,11 @@ export default function ResourcesPage() {
     <div className="max-w-6xl mx-auto space-y-5">
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Resource Center</h1>
-          <p className="text-sm text-muted mt-1">Drivers, PDF tools, and utilities — one tab away.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t("resourceCenter")}</h1>
+          <p className="text-sm text-muted mt-1">{t("resourceDescription")}</p>
         </div>
         <button className="btn btn-primary" onClick={() => setAddOpen(true)}>
-          <Icon name="plus" /> Add resource
+          <Icon name="plus" /> {t("addResource")}
         </button>
       </div>
 
@@ -73,12 +75,12 @@ export default function ResourcesPage() {
         <Icon name="search" className="text-muted px-2" />
         <input
           className="flex-1 bg-transparent outline-none text-sm"
-          placeholder="Search resources…"
+          placeholder={t("searchResources")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
         {q && (
-          <button className="btn btn-ghost !p-2" onClick={() => setQ("")} aria-label="Clear">
+          <button className="btn btn-ghost !p-2" onClick={() => setQ("")} aria-label={t("clear")}>
             <Icon name="xmark" />
           </button>
         )}
@@ -94,7 +96,7 @@ export default function ResourcesPage() {
             }`}
             style={{ borderColor: cat === c ? "var(--brand)" : "var(--line)" }}
           >
-            {c}
+            {c === "All" ? t("all") : c === "Driver" ? t("driver") : c === "PDF" ? t("pdfCategory") : c === "Image" ? t("imageCategory") : c === "Utility" ? t("utility") : c}
           </button>
         ))}
       </div>
@@ -104,7 +106,7 @@ export default function ResourcesPage() {
           <div className="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-2" style={{ background: "color-mix(in srgb, var(--brand) 10%, transparent)", color: "var(--brand)" }}>
             <Icon name="folder" />
           </div>
-          <p className="text-sm text-muted">No resources match. Try another search or add your own.</p>
+          <p className="text-sm text-muted">{t("noResources")}</p>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -126,21 +128,21 @@ export default function ResourcesPage() {
                   className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                     isFav(r.id) ? "text-[color:var(--brand)]" : "text-muted hover:text-[color:var(--brand)]"
                   }`}
-                  aria-label={isFav(r.id) ? "Unfavorite" : "Favorite"}
-                  title={isFav(r.id) ? "Favorited" : "Add to favorites"}
+                  aria-label={isFav(r.id) ? t("unfavorite") : t("favorite")}
+                  title={isFav(r.id) ? t("favorite") : t("addResource")}
                 >
                   <Icon name="star" {...(isFav(r.id) ? { className: "" } : {})} />
                 </button>
               </div>
               {r.note && <div className="text-xs text-muted">{r.note}</div>}
               <div className="flex items-center gap-2 pt-1">
-                <span className="chip">{r.category}</span>
+                <span className="chip">{r.category === "Driver" ? t("driver") : r.category === "PDF" ? t("pdfCategory") : r.category === "Image" ? t("imageCategory") : r.category === "Utility" ? t("utility") : r.category}</span>
                 <div className="flex-1" />
                 <button onClick={() => setEditing(r)} className="btn btn-ghost !py-1.5 !px-2 text-xs text-muted">
-                  <Icon name="edit" /> Edit
+                  <Icon name="edit" /> {t("edit")}
                 </button>
                 <button onClick={() => openResource(r)} className="btn btn-secondary !py-1.5 text-xs">
-                  <Icon name="up-right-from-square" /> Open
+                  <Icon name="up-right-from-square" /> {t("open")}
                 </button>
               </div>
             </div>
@@ -158,10 +160,10 @@ export default function ResourcesPage() {
         onSave={(r) => {
           if (editing) {
             update((d) => ({ ...d, resources: d.resources.map((x) => (x.id === r.id ? r : x)) }));
-            toast.push("Resource updated");
+            toast.push(t("resourceUpdated"));
           } else {
             update((d) => ({ ...d, resources: [r, ...d.resources] }));
-            toast.push("Resource added");
+            toast.push(t("resourceAdded"));
           }
           setAddOpen(false);
           setEditing(null);
@@ -170,7 +172,7 @@ export default function ResourcesPage() {
           editing
             ? (id) => {
                 update((d) => ({ ...d, resources: d.resources.filter((x) => x.id !== id) }));
-                toast.push("Resource deleted");
+                toast.push(t("resourceDeleted"));
                 setEditing(null);
               }
             : undefined
@@ -206,6 +208,7 @@ function ResourceModal({
   onSave: (r: ResourceLink) => void;
   onDelete?: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState(initial?.name ?? "");
   const [url, setUrl] = useState(initial?.url ?? "");
   const [category, setCategory] = useState(initial?.category ?? "Utility");
@@ -223,7 +226,7 @@ function ResourceModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={initial ? "Edit resource" : "Add resource"}
+      title={initial ? t("editResource") : t("addResource")}
       footer={
         <>
           {initial && onDelete && (
@@ -231,10 +234,10 @@ function ResourceModal({
               className="btn btn-danger mr-auto"
               onClick={() => onDelete(initial.id)}
             >
-              <Icon name="trash" /> Delete
+              <Icon name="trash" /> {t("delete")}
             </button>
           )}
-          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn btn-secondary" onClick={onClose}>{t("cancelAction")}</button>
           <button
             className="btn btn-primary"
             onClick={() => {
@@ -249,28 +252,28 @@ function ResourceModal({
               });
             }}
           >
-            <Icon name="save" /> Save
+            <Icon name="save" /> {t("save")}
           </button>
         </>
       }
     >
       <div className="space-y-3">
         <div>
-          <div className="label mb-1">Name</div>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Epson L3210 Driver" autoFocus />
+          <div className="label mb-1">{t("name")}</div>
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("resourceNameExample")} autoFocus />
         </div>
         <div>
-          <div className="label mb-1">URL</div>
+          <div className="label mb-1">{t("url")}</div>
           <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className="label mb-1">Category</div>
-            <input className="input" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Driver / PDF / Image / Utility" />
+            <div className="label mb-1">{t("categoryLabel")}</div>
+            <input className="input" value={category} onChange={(e) => setCategory(e.target.value)} placeholder={t("categoryExample")} />
           </div>
           <div>
-            <div className="label mb-1">Note (optional)</div>
-            <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Use for L-series" />
+            <div className="label mb-1">{t("optionalNoteLabel")}</div>
+            <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("noteExample")} />
           </div>
         </div>
       </div>
