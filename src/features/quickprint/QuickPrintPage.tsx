@@ -360,7 +360,7 @@ export default function QuickPrintPage() {
   const startDrag = (
     event: ReactPointerEvent<HTMLElement>,
     item: CanvasObject,
-    mode: "move" | "resize" = "move",
+    mode: "move" | "resize" | "rotate" = "move",
     resizeHandle: DragState["resizeHandle"] = "se",
   ) => {
     event.stopPropagation();
