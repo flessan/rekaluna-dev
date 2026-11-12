@@ -436,6 +436,14 @@ export default function QuickPrintPage() {
   };
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.type === "pointercancel") {
+      marqueeRef.current = null;
+      dragRef.current = null;
+      setSelectionRect(null);
+      setGuides({ x: null, y: null });
+      setDropTargetId(null);
+      return;
+    }
     const marquee = marqueeRef.current;
     if (marquee && marquee.pointerId === event.pointerId) {
       const rect = artboardRef.current?.getBoundingClientRect();
@@ -822,6 +830,11 @@ export default function QuickPrintPage() {
       if (modifier && key === "z") { event.preventDefault(); if (event.shiftKey) redo(); else undo(); return; }
       if (modifier && key === "y") { event.preventDefault(); redo(); return; }
       if (modifier && key === "d" && selectedCount) { event.preventDefault(); duplicateSelected(); return; }
+      if (modifier && key === "]" && selectedCount) { event.preventDefault(); bringToFront(); return; }
+      if (modifier && key === "[" && selectedCount) { event.preventDefault(); sendToBack(); return; }
+      if (modifier && key === "0") { event.preventDefault(); setZoom(1); return; }
+      if (modifier && (key === "+" || key === "=")) { event.preventDefault(); setZoom((value) => clamp(value + 0.1, 0.5, 2)); return; }
+      if (modifier && key === "-") { event.preventDefault(); setZoom((value) => clamp(value - 0.1, 0.5, 2)); return; }
       if ((event.key === "Delete" || event.key === "Backspace") && selectedCount) { event.preventDefault(); deleteSelected(); return; }
       if (!selectedCount || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
       event.preventDefault();
@@ -838,7 +851,7 @@ export default function QuickPrintPage() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [commit, contextMenu, copySelection, deleteSelected, duplicateSelected, pasteSelection, paperHeight, paperWidth, precise, redo, selectedCount, selectedId, selectedIds, undo]);
+  }, [bringToFront, commit, contextMenu, copySelection, deleteSelected, duplicateSelected, pasteSelection, paperHeight, paperWidth, precise, redo, selectedCount, selectedId, selectedIds, sendToBack, undo]);
 
   const handleDrop = (event: ReactDragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -1028,7 +1041,7 @@ export default function QuickPrintPage() {
               event.preventDefault();
               const element = (event.target as HTMLElement).closest("[data-object-id]") as HTMLElement | null;
               const objectId = element?.dataset.objectId ?? null;
-              if (objectId) { setSelectedId(objectId); setSelectedIds([objectId]); }
+              if (objectId) { setSelectedId(objectId); setSelectedIds([objectId]); setInspectorTab("position"); }
               const targetRect = element?.getBoundingClientRect();
               const keyboardContextMenu = event.clientX === 0 && event.clientY === 0;
               const anchorX = keyboardContextMenu && targetRect ? targetRect.left + targetRect.width / 2 : event.clientX;
@@ -1068,6 +1081,7 @@ export default function QuickPrintPage() {
                   if (!event.shiftKey) {
                     setSelectedId(null);
                     setSelectedIds([]);
+                    setInspectorTab("page");
                   }
                 }
               }}
@@ -1262,12 +1276,22 @@ export default function QuickPrintPage() {
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-2 mt-3 text-xs text-muted no-print">
-            <span>{objectCount} {t("objectCount")} · {paperWidth} × {paperHeight} mm</span>
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-3 text-xs text-muted no-print">
             <div className="flex items-center gap-2">
-              <span>{t("zoom")}</span>
-              <input aria-label={t("zoom")} type="range" min="0.75" max="1.35" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="w-24" />
-              <span className="num w-10 text-right">{Math.round(zoom * 100)}%</span>
+              <span className="font-medium">{t("page")}</span>
+              <span className="chip">{prefs.paper} · {t(prefs.orientation)}</span>
+              <span>{objectCount} {t("objectCount")}</span>
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              <button className="btn btn-ghost !p-1.5" aria-label={t("zoomOut")} title={t("zoomOut")} onClick={() => setZoom((value) => clamp(value - 0.1, 0.5, 2))}>
+                <Icon name="minus" />
+              </button>
+              <input aria-label={t("zoom")} type="range" min="0.5" max="2" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="w-24 md:w-32" />
+              <span className="num w-11 text-right">{Math.round(zoom * 100)}%</span>
+              <button className="btn btn-ghost !p-1.5" aria-label={t("zoomIn")} title={t("zoomIn")} onClick={() => setZoom((value) => clamp(value + 0.1, 0.5, 2))}>
+                <Icon name="plus" />
+              </button>
+              <button className="btn btn-secondary !px-2.5 !py-1.5 text-xs" onClick={() => setZoom(1)}>{t("zoomFit")}</button>
             </div>
           </div>
         </section>
