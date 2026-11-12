@@ -32,7 +32,7 @@ center for drivers and PDF tools.
 ## Sections
 
 - **Workspace** — greeting, quick actions, favorites, recent activity.
-- **Quick Print** — multi-image sheet editor with drag-and-drop, snap guides, millimeter positioning, group selection, keyboard editing, crop/pan controls, and square/rounded/circle/oval frames. Drag an existing image onto a frame to fill it. 2-, 3-, 4-, and 6-up layouts inherit the selected frame shape, including true circular cells. Right-click objects for crop, fit/fill, replace, rotate, layer order, duplicate, copy/cut, and delete actions. Includes a custom paper background palette and isolated sheet-only printing.
+- **Quick Print** — multi-image sheet editor with drag-and-drop, snap guides, millimeter positioning, group selection, keyboard editing, crop/pan controls, and square/rounded/circle/oval frames. Choose one shape for both quick layouts and newly added frames, so the toolbar has one shape selector. Circle layouts and edited circle frames stay truly circular. Drag an existing image onto a frame to fill it. Right-click objects for crop, fit/fill, replace, rotate, layer order, duplicate, copy/cut, and delete actions. Includes a custom paper background palette and isolated sheet-only printing.
 - **Price Desk** — large money buttons, service chips, live totals, cash/change
   mode, undo/duplicate/clear, custom items.
 - **Resource Center** — drivers, PDF tools, image tools, and utilities. Add your own.
@@ -66,6 +66,12 @@ center for drivers and PDF tools.
 - Icons: Font Awesome solid + regular.
 - Desktop: sidebar nav, top toolbar, dense workspace.
 - Mobile: bottom nav, FAB, bottom sheets, rounded surfaces, touch-first targets.
+
+## Browser and Linux support
+
+- Rekaluna is a browser app and has no Arch-specific runtime package. It is intended for current desktop Firefox and Chromium-based browsers on Windows, macOS, and Linux, including Arch Linux.
+- On Firefox under some Linux Wayland desktop setups, dragging files from the desktop into a browser tab can be affected by browser / desktop integration. Use **Add images** to open the native file picker, or paste an image with `Ctrl + V` as a fallback.
+- For print accuracy, select the paper size that matches the printer, use 100% scale when exact millimeter dimensions matter, and enable background graphics when printing a custom paper color. Browser and printer preferences can override background-color output.
 
 ## Development
 

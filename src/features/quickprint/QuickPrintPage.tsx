@@ -90,7 +90,7 @@ export default function QuickPrintPage() {
   const redoStack = useRef<CanvasObject[][]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [layoutShape, setLayoutShape] = useState<FrameShape>("rounded");
+  const [layoutShape, setLayoutShape] = useState<FrameShape>("square");
   const [cropMode, setCropMode] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; objectId: string | null } | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
@@ -169,14 +169,15 @@ export default function QuickPrintPage() {
     };
   }, [paperWidth, zoom]);
 
-  const addFrame = (shape: FrameShape) => {
-    const size = shape === "circle" ? 52 : shape === "oval" ? 70 : 62;
+  const addFrame = (shape: FrameShape = layoutShape) => {
+    const width = shape === "oval" ? 70 : 62;
+    const height = shape === "oval" ? 44 : width;
     const item: CanvasObject = {
       id: uid(), kind: "frame", src: null, name: t("frame"),
       naturalWidth: 0, naturalHeight: 0,
-      x: clamp((paperWidth - size) / 2, margin, paperWidth - margin - size),
-      y: clamp((paperHeight - size) / 2, margin, paperHeight - margin - size),
-      width: size, height: shape === "oval" ? 44 : size,
+      x: clamp((paperWidth - width) / 2, margin, paperWidth - margin - width),
+      y: clamp((paperHeight - height) / 2, margin, paperHeight - margin - height),
+      width, height,
       rotation: 0, shape, fit: "cover", cropScale: 1, cropX: 50, cropY: 50,
       zIndex: objectsRef.current.length + 1,
     };
@@ -424,6 +425,26 @@ export default function QuickPrintPage() {
     commit((current) => current.map((item) => ids.includes(item.id) ? { ...item, ...patch } : item));
   };
 
+  const updateSelectedShape = (shape: FrameShape) => {
+    const ids = selectedIds.length ? selectedIds : selectedId ? [selectedId] : [];
+    if (!ids.length) return;
+    commit((current) => current.map((item) => {
+      if (!ids.includes(item.id)) return item;
+      if (shape !== "circle") return { ...item, shape };
+      const side = Math.min(item.width, item.height);
+      const centerX = item.x + item.width / 2;
+      const centerY = item.y + item.height / 2;
+      return {
+        ...item,
+        shape,
+        width: side,
+        height: side,
+        x: clamp(centerX - side / 2, 0, paperWidth - side),
+        y: clamp(centerY - side / 2, 0, paperHeight - side),
+      };
+    }));
+  };
+
   const duplicateSelected = () => {
     const ids = selectedIds.length ? selectedIds : selectedId ? [selectedId] : [];
     const current = objectsRef.current, chosen = current.filter((item) => ids.includes(item.id));
@@ -484,7 +505,9 @@ export default function QuickPrintPage() {
 
     const frame = document.createElement("iframe");
     frame.title = t("printSheet");
-    frame.style.cssText = "position:fixed;left:-10000px;top:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none;";
+    frame.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;border:0;opacity:0;pointer-events:none;z-index:2147483647;";
+    frame.setAttribute("aria-hidden", "true");
+    frame.tabIndex = -1;
     document.body.appendChild(frame);
 
     const printWindow = frame.contentWindow;
@@ -569,17 +592,38 @@ export default function QuickPrintPage() {
     printDocument.close();
 
     try {
-      await Promise.all(Array.from(printDocument.images).map((image) => image.decode().catch(() => undefined)));
+      await Promise.all(Array.from(printDocument.images).map((image) => {
+        if (typeof image.decode === "function") return image.decode().catch(() => undefined);
+        if (image.complete) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+          image.addEventListener("load", () => resolve(), { once: true });
+          image.addEventListener("error", () => resolve(), { once: true });
+        });
+      }));
+      if (printDocument.fonts?.ready) await printDocument.fonts.ready.catch(() => undefined);
     } catch {
-      // Keep printing even if one browser cannot decode an image promise.
+      // Keep printing even if a browser cannot decode an image or wait for fonts.
     }
 
     const cleanup = () => {
       if (frame.isConnected) frame.remove();
     };
+    const requestFrame = printWindow.requestAnimationFrame?.bind(printWindow);
+    if (requestFrame) {
+      await new Promise<void>((resolve) => requestFrame(() => requestFrame(() => resolve())));
+    } else {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 80));
+    }
+
     printWindow.addEventListener("afterprint", cleanup, { once: true });
+    window.addEventListener("afterprint", cleanup, { once: true });
     printWindow.focus();
-    printWindow.print();
+    try {
+      printWindow.print();
+    } catch {
+      cleanup();
+      window.print();
+    }
     window.setTimeout(cleanup, 120000);
   }, [paperBackground, paperHeight, paperWidth, t]);
 
@@ -623,9 +667,7 @@ export default function QuickPrintPage() {
       case "copy": copySelection(); break;
       case "cut": copySelection(); deleteSelected(); break;
       case "paste": pasteSelection(); break;
-      case "add-square": addFrame("square"); break;
-      case "add-circle": addFrame("circle"); break;
-      case "add-rounded": addFrame("rounded"); break;
+      case "add-selected-frame": addFrame(); break;
       case "duplicate": duplicateSelected(); break;
       case "delete": deleteSelected(); break;
       case "replace": if (target) { setFileTargetId(target.id); fileInputRef.current?.click(); } break;
@@ -725,15 +767,6 @@ export default function QuickPrintPage() {
         <section className="card p-3 md:p-4 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-3 no-print">
             <button className="btn btn-primary" onClick={() => { setFileTargetId(undefined); fileInputRef.current?.click(); }}><Icon name="plus" /> {t("addImages")}</button>
-            <div className="flex items-center gap-1.5">
-              <span className="label hidden sm:inline">{t("framePresets")}</span>
-              {(["square", "rounded", "circle", "oval"] as FrameShape[]).map((shape) => (
-                <button key={shape} className="btn btn-secondary !px-2.5" onClick={() => addFrame(shape)} title={t(shape)}>
-                  <span className={"w-4 h-4 border-2 border-current inline-block " + (shape === "circle" || shape === "oval" ? "rounded-full" : shape === "rounded" ? "rounded-md" : "")} />
-                  <span className="hidden lg:inline">{t(shape)}</span>
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 mb-3 no-print">
@@ -749,12 +782,15 @@ export default function QuickPrintPage() {
               <span className="label mr-1">{t("layoutShape")}</span>
               {(["square", "rounded", "circle", "oval"] as FrameShape[]).map((shape) => (
                 <button key={shape} type="button" aria-pressed={layoutShape === shape} title={t(shape)} onClick={() => setLayoutShape(shape)}
-                  className={"relative h-8 min-w-8 px-2 rounded-lg border flex items-center justify-center gap-1 text-[11px] transition-snappy " + (layoutShape === shape ? "border-[color:var(--brand)] bg-[rgba(156,28,38,.08)] text-[color:var(--brand)]" : "border-[color:var(--line)] hover:bg-[color:var(--canvas)]")}>
-                  <span className={"w-3.5 h-3.5 border-2 border-current inline-block " + (shape === "circle" || shape === "oval" ? "rounded-full" : shape === "rounded" ? "rounded-md" : "")} />
+                  className={"relative h-8 px-2 rounded-lg border flex items-center justify-center gap-1.5 text-[11px] transition-snappy " + (layoutShape === shape ? "border-[color:var(--brand)] bg-[rgba(156,28,38,.08)] text-[color:var(--brand)]" : "border-[color:var(--line)] hover:bg-[color:var(--canvas)]")}>
+                  <span className={"border-2 border-current inline-block " + (shape === "oval" ? "w-4 h-2.5 rounded-full" : shape === "circle" ? "w-3.5 h-3.5 rounded-full" : shape === "rounded" ? "w-3.5 h-3.5 rounded-md" : "w-3.5 h-3.5")} />
+                  <span>{t(shape)}</span>
                   {layoutShape === shape && <Icon name="check" size="2xs" />}
-                  <span className="sr-only">{t(shape)}</span>
                 </button>
               ))}
+              <button type="button" className="btn btn-secondary !py-1.5 !px-2.5 text-xs" onClick={() => addFrame()}>
+                <Icon name="frame" /> {t("addFrame")}
+              </button>
             </div>
             <label className="inline-flex items-center gap-2 text-xs text-muted cursor-pointer">
               <input type="checkbox" checked={snapEnabled} onChange={(event) => setSnapEnabled(event.target.checked)} />
@@ -917,9 +953,7 @@ export default function QuickPrintPage() {
                   {objects.length > 0 && <ContextAction label={t("selectAll")} icon="object-group" onClick={() => runContextAction("select-all")} />}
                   {clipboardRef.current.length > 0 && <ContextAction label={t("paste")} icon="paste" onClick={() => runContextAction("paste")} />}
                   <div className="my-1 border-t" style={{ borderColor: "var(--line)" }} />
-                  <ContextAction label={t("addSquareFrame")} icon="frame" onClick={() => runContextAction("add-square")} />
-                  <ContextAction label={t("addCircleFrame")} icon="frame" onClick={() => runContextAction("add-circle")} />
-                  <ContextAction label={t("addRoundedFrame")} icon="frame" onClick={() => runContextAction("add-rounded")} />
+                  <ContextAction label={t("addFrame")} icon="frame" onClick={() => runContextAction("add-selected-frame")} />
                 </>
               )}
             </div>
@@ -1016,10 +1050,10 @@ export default function QuickPrintPage() {
                   <NumberField label={t("rotation")} value={selected.rotation} step={1} suffix="°" onChange={(value) => updateSelected({ rotation: ((value % 360) + 360) % 360 })} />
                 </div>
                 <div>
-                  <div className="label mb-1.5">{t("framePresets")}</div>
+                  <div className="label mb-1.5">{t("shape")}</div>
                   <div className="grid grid-cols-4 gap-1">
                     {(["square", "rounded", "circle", "oval"] as FrameShape[]).map((shape) => (
-                      <button key={shape} onClick={() => updateSelected({ shape })} className={"border rounded-lg py-2 text-[10px] capitalize " + (selected.shape === shape ? "border-[color:var(--brand)] text-[color:var(--brand)] bg-[rgba(156,28,38,.06)]" : "border-[color:var(--line)]")}>{t(shape)}</button>
+                      <button key={shape} aria-pressed={selected.shape === shape} onClick={() => updateSelectedShape(shape)} className={"border rounded-lg py-2 text-[10px] capitalize " + (selected.shape === shape ? "border-[color:var(--brand)] text-[color:var(--brand)] bg-[rgba(156,28,38,.06)]" : "border-[color:var(--line)]")}>{t(shape)}</button>
                     ))}
                   </div>
                 </div>
