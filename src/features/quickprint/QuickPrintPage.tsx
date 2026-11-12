@@ -93,6 +93,8 @@ export default function QuickPrintPage() {
   const [layoutShape, setLayoutShape] = useState<FrameShape>("square");
   const [cropMode, setCropMode] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; objectId: string | null } | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ left: number; top: number } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const clipboardRef = useRef<CanvasObject[]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -682,18 +684,50 @@ export default function QuickPrintPage() {
     }
   };
   useEffect(() => {
-    if (!contextMenu) return;
+    if (!contextMenu) {
+      setContextMenuPosition(null);
+      return;
+    }
+
+    const positionMenu = () => {
+      const menu = contextMenuRef.current;
+      if (!menu) return;
+      const rect = menu.getBoundingClientRect();
+      const edge = 10;
+      const gap = 8;
+      const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+      const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+
+      let left = contextMenu.x + gap;
+      let top = contextMenu.y + gap;
+      if (left + rect.width > viewportWidth - edge) left = contextMenu.x - rect.width - gap;
+      if (top + rect.height > viewportHeight - edge) top = contextMenu.y - rect.height - gap;
+
+      setContextMenuPosition({
+        left: clamp(left, edge, viewportWidth - rect.width - edge),
+        top: clamp(top, edge, viewportHeight - rect.height - edge),
+      });
+    };
+
+    positionMenu();
+    window.addEventListener("resize", positionMenu);
+    window.addEventListener("scroll", positionMenu, true);
     const dismiss = (event: PointerEvent) => {
       if ((event.target as HTMLElement | null)?.closest("[data-context-menu]")) return;
       setContextMenu(null);
     };
     document.addEventListener("pointerdown", dismiss);
-    return () => document.removeEventListener("pointerdown", dismiss);
-  }, [contextMenu]);
+    return () => {
+      window.removeEventListener("resize", positionMenu);
+      window.removeEventListener("scroll", positionMenu, true);
+      document.removeEventListener("pointerdown", dismiss);
+    };
+  }, [contextMenu, contextObject]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-context-menu]")) return;
       if (target && (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable)) return;
       const modifier = event.ctrlKey || event.metaKey, key = event.key.toLowerCase();
       if (event.key === "Escape") {
@@ -816,7 +850,12 @@ export default function QuickPrintPage() {
               const element = (event.target as HTMLElement).closest("[data-object-id]") as HTMLElement | null;
               const objectId = element?.dataset.objectId ?? null;
               if (objectId) { setSelectedId(objectId); setSelectedIds([objectId]); }
-              setContextMenu({ x: event.clientX, y: event.clientY, objectId });
+              const targetRect = element?.getBoundingClientRect();
+              const keyboardContextMenu = event.clientX === 0 && event.clientY === 0;
+              const anchorX = keyboardContextMenu && targetRect ? targetRect.left + targetRect.width / 2 : event.clientX;
+              const anchorY = keyboardContextMenu && targetRect ? targetRect.top + targetRect.height / 2 : event.clientY;
+              setContextMenuPosition(null);
+              setContextMenu({ x: anchorX, y: anchorY, objectId });
             }}
           >
             <div
@@ -928,23 +967,68 @@ export default function QuickPrintPage() {
           </div>
 
           {contextMenu && (
-            <div data-context-menu className="fixed z-[10000] min-w-[190px] max-w-[230px] rounded-xl border p-1.5 shadow-xl no-print"
-              style={{ left: Math.max(8, Math.min(contextMenu.x, window.innerWidth - 238)), top: Math.max(8, Math.min(contextMenu.y, window.innerHeight - (contextObject ? 460 : 240))), background: "var(--surface)", borderColor: "var(--line)" }}
-              onContextMenu={(event) => event.preventDefault()} onPointerDown={(event) => event.stopPropagation()}>
+            <div
+              ref={contextMenuRef}
+              data-context-menu
+              role="menu"
+              aria-label={contextObject ? contextObject.name : t("quickActions")}
+              className="fixed z-[10000] w-[224px] max-w-[calc(100vw-20px)] max-h-[calc(100dvh-20px)] overflow-y-auto overscroll-contain rounded-xl border p-1.5 shadow-xl no-print"
+              style={{
+                left: contextMenuPosition?.left ?? clamp(contextMenu.x + 8, 10, window.innerWidth - 234),
+                top: contextMenuPosition?.top ?? clamp(contextMenu.y + 8, 10, window.innerHeight - 260),
+                background: "var(--surface)",
+                borderColor: "var(--line)",
+              }}
+              onContextMenu={(event) => event.preventDefault()}
+              onPointerDown={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                const items = Array.from(contextMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+                if (!items.length) return;
+                const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+                let nextIndex = currentIndex;
+                if (event.key === "ArrowDown") nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % items.length;
+                else if (event.key === "ArrowUp") nextIndex = currentIndex < 0 ? items.length - 1 : (currentIndex - 1 + items.length) % items.length;
+                else if (event.key === "Home") nextIndex = 0;
+                else if (event.key === "End") nextIndex = items.length - 1;
+                else return;
+                event.preventDefault();
+                items[nextIndex]?.focus();
+              }}
+            >
               {contextObject ? (
                 <>
-                  <div className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted truncate">{contextObject.name}</div>
+                  <div className="px-2.5 pt-1.5 pb-2">
+                    <div className="text-xs font-semibold truncate">{contextObject.name}</div>
+                    <div className="text-[10px] text-muted mt-0.5">
+                      {contextObject.src ? t("image") : t("frame")} · {Math.round(contextObject.width)} × {Math.round(contextObject.height)} mm
+                    </div>
+                  </div>
+                  <div className="my-1 border-t" style={{ borderColor: "var(--line)" }} />
                   <ContextAction label={t("copy")} icon="copy" onClick={() => runContextAction("copy")} />
                   <ContextAction label={t("cut")} icon="scissors" onClick={() => runContextAction("cut")} />
-                  <ContextAction label={t("duplicate")} icon="copy" onClick={() => runContextAction("duplicate")} />
-                  {contextObject.src && <ContextAction label={t("cropMode")} icon="crop" onClick={() => runContextAction("crop")} />}
-                  {contextObject.src && <ContextAction label={t("cover")} icon="expand" onClick={() => runContextAction("cover")} />}
-                  {contextObject.src && <ContextAction label={t("contain")} icon="compress" onClick={() => runContextAction("contain")} />}
-                  {(contextObject.src || contextObject.kind === "frame") && <ContextAction label={t("replaceImage")} icon="image" onClick={() => runContextAction("replace")} />}
-                  {contextObject.src && <ContextAction label={t("resetCrop")} icon="rotate" onClick={() => runContextAction("reset-crop")} />}
+                  <ContextAction label={t("duplicate")} icon="clone" onClick={() => runContextAction("duplicate")} />
+                  {objects.length > 1 && <ContextAction label={t("selectAll")} icon="object-group" onClick={() => runContextAction("select-all")} />}
+                  {contextObject.src && (
+                    <>
+                      <div className="px-2.5 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">{t("imageFit")}</div>
+                      <ContextAction label={t("cropMode")} icon="crop" onClick={() => runContextAction("crop")} />
+                      <ContextAction label={t("cover")} icon="expand" onClick={() => runContextAction("cover")} />
+                      <ContextAction label={t("contain")} icon="compress" onClick={() => runContextAction("contain")} />
+                      <ContextAction label={t("resetCrop")} icon="rotate" onClick={() => runContextAction("reset-crop")} />
+                      <ContextAction label={t("replaceImage")} icon="image" onClick={() => runContextAction("replace")} />
+                    </>
+                  )}
+                  {!contextObject.src && contextObject.kind === "frame" && (
+                    <ContextAction label={t("addImage")} icon="image" onClick={() => runContextAction("replace")} />
+                  )}
+                  <div className="my-1 border-t" style={{ borderColor: "var(--line)" }} />
                   <ContextAction label={t("rotateLeft")} icon="rotate" onClick={() => runContextAction("rotate")} />
-                  <ContextAction label={t("bringToFront")} icon="chevron-up" onClick={() => runContextAction("front")} />
-                  <ContextAction label={t("sendToBack")} icon="chevron-down" onClick={() => runContextAction("back")} />
+                  {objects.length > 1 && (
+                    <>
+                      <ContextAction label={t("bringToFront")} icon="chevron-up" onClick={() => runContextAction("front")} />
+                      <ContextAction label={t("sendToBack")} icon="chevron-down" onClick={() => runContextAction("back")} />
+                    </>
+                  )}
                   <div className="my-1 border-t" style={{ borderColor: "var(--line)" }} />
                   <ContextAction label={t("delete")} icon="trash" danger onClick={() => runContextAction("delete")} />
                 </>
@@ -952,7 +1036,7 @@ export default function QuickPrintPage() {
                 <>
                   {objects.length > 0 && <ContextAction label={t("selectAll")} icon="object-group" onClick={() => runContextAction("select-all")} />}
                   {clipboardRef.current.length > 0 && <ContextAction label={t("paste")} icon="paste" onClick={() => runContextAction("paste")} />}
-                  <div className="my-1 border-t" style={{ borderColor: "var(--line)" }} />
+                  {objects.length > 0 && <div className="my-1 border-t" style={{ borderColor: "var(--line)" }} />}
                   <ContextAction label={t("addFrame")} icon="frame" onClick={() => runContextAction("add-selected-frame")} />
                 </>
               )}
@@ -1151,7 +1235,7 @@ function ContextAction({ label, icon, onClick, danger = false }: {
   danger?: boolean;
 }) {
   return (
-    <button type="button" className={"w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-snappy " + (danger ? "text-red-600 hover:bg-red-50" : "hover:bg-[color:var(--canvas)]")} onClick={onClick}>
+    <button type="button" role="menuitem" className={"w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-snappy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)] " + (danger ? "text-red-600 hover:bg-red-50" : "hover:bg-[color:var(--canvas)]")} onClick={onClick}>
       <Icon name={icon} /><span>{label}</span>
     </button>
   );
