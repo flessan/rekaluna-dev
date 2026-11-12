@@ -684,6 +684,14 @@ export default function QuickPrintPage() {
     }
   };
   useEffect(() => {
+    if (!contextMenu) return;
+    const frame = window.requestAnimationFrame(() => {
+      contextMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [contextMenu]);
+
+  useEffect(() => {
     if (!contextMenu) {
       setContextMenuPosition(null);
       return;
@@ -1006,7 +1014,7 @@ export default function QuickPrintPage() {
                   <div className="my-1 border-t" style={{ borderColor: "var(--line)" }} />
                   <ContextAction label={t("copy")} icon="copy" onClick={() => runContextAction("copy")} />
                   <ContextAction label={t("cut")} icon="scissors" onClick={() => runContextAction("cut")} />
-                  <ContextAction label={t("duplicate")} icon="clone" onClick={() => runContextAction("duplicate")} />
+                  <ContextAction label={t("duplicate")} icon="copy" onClick={() => runContextAction("duplicate")} />
                   {objects.length > 1 && <ContextAction label={t("selectAll")} icon="object-group" onClick={() => runContextAction("select-all")} />}
                   {contextObject.src && (
                     <>
