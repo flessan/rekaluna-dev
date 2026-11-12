@@ -1,5 +1,6 @@
 import { Icon } from "../lib/icons";
 import { useToast } from "../lib/toast";
+import { useI18n } from "../lib/i18n";
 
 // A simple placeholder QRIS SVG — a stylized QR grid since we can't load remote images.
 // It's presented as the donation QR. Users can scan with any banking/e-wallet app.
@@ -57,6 +58,7 @@ function QRISArt() {
 
 export default function SupportPage() {
   const toast = useToast();
+  const { t } = useI18n();
   const donateLink = "https://rekaluna.app/donate";
 
   return (
@@ -65,15 +67,12 @@ export default function SupportPage() {
         <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center text-white mb-4" style={{ background: "var(--brand)" }}>
           <Icon name="heart" size="lg" />
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Support Rekaluna ❤️</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t("supportTitle")}</h1>
         <p className="mt-3 text-sm md:text-base text-muted leading-relaxed max-w-xl mx-auto">
-          Rekaluna is free, open-source, and built for people who need a simple tool for everyday
-          printing work. If Rekaluna helps your workflow and you want to support future development,
-          you can optionally donate through the QRIS code below.
+{t("supportIntro")}
         </p>
         <p className="mt-2 text-sm md:text-base text-muted leading-relaxed max-w-xl mx-auto">
-          There is absolutely no obligation. Using Rekaluna is already meaningful support.
-          <br />Thank you ❤️
+{t("supportNoObligation")}<br />{t("thankYou")}
         </p>
 
         <div className="mt-6 inline-block rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "#fff" }}>
@@ -82,7 +81,7 @@ export default function SupportPage() {
           </div>
           <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted">
             <span className="chip">QRIS</span>
-            <span>Scan with any e-wallet / mobile banking app</span>
+            <span>{t("scanQris")}</span>
           </div>
         </div>
 
@@ -91,19 +90,18 @@ export default function SupportPage() {
             className="btn btn-secondary"
             onClick={() => {
               navigator.clipboard?.writeText(donateLink);
-              toast.push("Donation link copied");
+              toast.push(t("donationCopied"));
             }}
           >
-            <Icon name="link" /> Copy donation link
+            <Icon name="link" /> {t("copyDonation")}
           </button>
           <a className="btn btn-primary" href={donateLink} target="_blank" rel="noopener noreferrer">
-            <Icon name="up-right-from-square" /> Open donation page
+            <Icon name="up-right-from-square" /> {t("openDonation")}
           </a>
         </div>
 
         <div className="mt-8 text-[12px] text-muted max-w-lg mx-auto leading-relaxed">
-          Rekaluna does not collect data, show ads, or require accounts. Every contribution —
-          code, feedback, translations, or a kind word — helps more than you think.
+{t("contributionLine")}
         </div>
       </div>
     </div>

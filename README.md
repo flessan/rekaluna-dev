@@ -24,7 +24,7 @@ It replaces the dozen tabs and utilities that operators juggle all day with one
 focused app: quick printing, a lightning-fast price desk, and a curated resource
 center for drivers and PDF tools.
 
-- Paste an image (`Ctrl+V`), preview it on paper, and print — no upload.
+- Arrange multiple images on one sheet, drag them into place, snap-align, and print — no upload.
 - Tap quick money buttons, tweak quantities, and answer "How much?" in seconds.
 - Pin your favorite tools and resources. Everything is stored on your device.
 - Works offline. Install it as a PWA. No account. No server. No tracking.
@@ -32,13 +32,13 @@ center for drivers and PDF tools.
 ## Sections
 
 - **Workspace** — greeting, quick actions, favorites, recent activity.
-- **Quick Print** — paste/drop/select an image; choose paper, orientation,
-  copies, scaling, margin; print with the native browser dialog.
+- **Quick Print** — multi-image sheet editor with drag-and-drop, snap guides, millimeter positioning, arrow-key nudging, duplicate objects, undo/redo, and square/rounded/circle/oval frames. Drop an image onto a frame to fill it. Includes 2-, 3-, 4-, and 6-frame layout presets, a paper background color palette with custom colors, and sheet-only printing that excludes the app interface.
 - **Price Desk** — large money buttons, service chips, live totals, cash/change
   mode, undo/duplicate/clear, custom items.
 - **Resource Center** — drivers, PDF tools, image tools, and utilities. Add your own.
 - **Support** — optional donation via QRIS. No pressure.
 - **About** — philosophy, tech stack, license, contribution info.
+- **Languages** — English and Bahasa Indonesia, with a saved language preference.
 
 ## Keyboard workflow (desktop)
 
@@ -46,8 +46,13 @@ center for drivers and PDF tools.
 | ------------ | --------------------------- |
 | `Ctrl + K`   | Open command palette        |
 | `Ctrl + V`   | Paste image into Quick Print |
-| `Ctrl + P`   | Trigger print (when image is loaded) |
+| `Ctrl + P`   | Print the current sheet |
 | `Esc`        | Close modals / sheets       |
+| `← ↑ → ↓`    | Move the selected object by 1 mm |
+| `Alt + arrows` | Fine movement by 0.1 mm |
+| `Shift + arrows` | Move by 10 mm |
+| `Ctrl + D`   | Duplicate selected object   |
+| `Ctrl + Z` / `Ctrl + Shift + Z` | Undo / redo canvas edits |
 | `↑ ↓` `↵`    | Navigate lists / run command |
 
 ## Design
@@ -88,6 +93,7 @@ src/
     quickprint/      Quick Print page
     pricedesk/       Price Desk page
   lib/
+    i18n.tsx         English / Indonesian locale provider
     storage.ts       Centralized localStorage layer
     storage-hooks.ts React bindings
     commands.tsx     Command palette + registry

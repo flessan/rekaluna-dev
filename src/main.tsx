@@ -11,6 +11,7 @@ import { CommandProvider } from "./lib/commands";
 import { ToastProvider } from "./lib/toast";
 import { initTheme } from "./lib/theme";
 import { Icon } from "./lib/icons";
+import { I18nProvider, useI18n } from "./lib/i18n";
 
 import WorkspacePage from "./pages/Workspace";
 import QuickPrintPage from "./features/quickprint/QuickPrintPage";
@@ -71,21 +72,23 @@ function App() {
 
 function NotFound() {
   const nav = useNavigate();
+  const { t } = useI18n();
   return (
     <div className="max-w-xl mx-auto text-center py-20">
       <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4" style={{ background: "color-mix(in srgb, var(--brand) 10%, transparent)", color: "var(--brand)" }}>
         <Icon name="circle-exclamation" size="lg" />
       </div>
-      <h1 className="text-2xl font-bold">Page not found</h1>
-      <p className="text-sm text-muted mt-1">That page does not exist in this workspace.</p>
+      <h1 className="text-2xl font-bold">{t("notFound")}</h1>
+      <p className="text-sm text-muted mt-1">{t("pageMissing")}</p>
       <button className="btn btn-primary mt-4" onClick={() => nav("/")}>
-        <Icon name="house" /> Back to Workspace
+        <Icon name="house" /> {t("backWorkspace")}
       </button>
     </div>
   );
 }
 
 function OfflineBanner() {
+  const { t } = useI18n();
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   useEffect(() => {
     const on = () => setOnline(true);
@@ -101,15 +104,17 @@ function OfflineBanner() {
   return (
     <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 card px-4 py-2 text-sm shadow-pop flex items-center gap-2 fade-in">
       <Icon name="wifi" className="text-muted" />
-      You're offline — Rekaluna keeps working locally.
+      {t("offline")}
     </div>
   );
 }
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <I18nProvider>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </I18nProvider>
   </StrictMode>
 );

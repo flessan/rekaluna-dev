@@ -5,10 +5,12 @@ import { storage, format, type ThemeMode } from "../lib/storage";
 import { useStorage } from "../lib/storage-hooks";
 import { applyTheme } from "../lib/theme";
 import { useToast } from "../lib/toast";
+import { useI18n } from "../lib/i18n";
 
 export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data, update, reset } = useStorage();
   const toast = useToast();
+  const { t, locale, setLocale } = useI18n();
   const s = data.settings;
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -21,9 +23,6 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     update((d) => ({ ...d, settings: { ...d.settings, print: { ...d.settings.print, paper } } }));
   const setOrientation = (orientation: typeof s.print.orientation) =>
     update((d) => ({ ...d, settings: { ...d.settings, print: { ...d.settings.print, orientation } } }));
-  const setCopies = (copies: number) =>
-    update((d) => ({ ...d, settings: { ...d.settings, print: { ...d.settings.print, copies: Math.max(1, Math.min(99, copies)) } } }));
-
   const [moneyInput, setMoneyInput] = useState(s.quickMoney.map((n) => String(n)).join(", "));
   useEffect(() => {
     setMoneyInput(s.quickMoney.map((n) => String(n)).join(", "));
@@ -35,11 +34,11 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
       .map((x) => Number(x.replace(/[^0-9]/g, "")))
       .filter((n) => Number.isFinite(n) && n > 0);
     if (nums.length === 0) {
-      toast.push("Add at least one amount", "error");
+      toast.push(t("addAmountError"), "error");
       return;
     }
     update((d) => ({ ...d, settings: { ...d.settings, quickMoney: nums } }));
-    toast.push("Quick money saved");
+    toast.push(t("quickMoneySaved"));
   };
 
   const doExport = () => {
@@ -50,14 +49,14 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     a.download = `rekaluna-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.push("Data exported");
+    toast.push(t("dataExported"));
   };
 
   const doImport = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
       const ok = storage.import(String(reader.result));
-      toast.push(ok ? "Data imported" : "Could not read file", ok ? "success" : "error");
+      toast.push(ok ? t("dataImported") : t("importFailed"), ok ? "success" : "error");
       if (ok) {
         applyTheme(storage.getAll().settings.theme);
       }
@@ -66,24 +65,24 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   };
 
   const doClear = () => {
-    if (!confirm("Clear all local data? This resets services, favorites, and settings.")) return;
+    if (!confirm(t("clearConfirm"))) return;
     reset();
     applyTheme(storage.getAll().settings.theme);
-    toast.push("Data cleared");
+    toast.push(t("dataCleared"));
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Settings" size="md">
+    <Modal open={open} onClose={onClose} title={t("settings")} size="md">
       <div className="space-y-6">
-        <Section title="Printing defaults">
-          <Row label="Paper size">
+        <Section title={t("printingDefaults")}>
+          <Row label={t("paperSize")}>
             <Segmented
               options={["A4", "F4", "Letter", "Legal"]}
               value={s.print.paper}
               onChange={(v) => setPaper(v as any)}
             />
           </Row>
-          <Row label="Orientation">
+          <Row label={t("orientation")}>
             <Segmented
               options={["portrait", "landscape"]}
               value={s.print.orientation}
@@ -91,22 +90,10 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
               capitalize
             />
           </Row>
-          <Row label="Copies">
-            <div className="flex items-center border rounded-lg overflow-hidden w-32" style={{ borderColor: "var(--line)" }}>
-              <button className="w-9 h-9 flex items-center justify-center hover:bg-[rgba(26,26,27,0.04)]" onClick={() => setCopies(s.print.copies - 1)}><Icon name="minus" size="xs" /></button>
-              <input
-                type="number"
-                className="flex-1 text-center bg-transparent outline-none num font-semibold text-sm"
-                value={s.print.copies}
-                onChange={(e) => setCopies(Number(e.target.value) || 1)}
-              />
-              <button className="w-9 h-9 flex items-center justify-center hover:bg-[rgba(26,26,27,0.04)]" onClick={() => setCopies(s.print.copies + 1)}><Icon name="plus" size="xs" /></button>
-            </div>
-          </Row>
         </Section>
 
-        <Section title="Price desk">
-          <Row label="Quick money buttons">
+        <Section title={t("supportSection")}>
+          <Row label={t("quickMoney")}>
             <div className="w-full">
               <input
                 className="input num"
@@ -114,21 +101,21 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                 onChange={(e) => setMoneyInput(e.target.value)}
                 placeholder="250, 500, 1000"
               />
-              <div className="text-[11px] text-muted mt-1">Comma-separated Rupiah amounts.</div>
+              <div className="text-[11px] text-muted mt-1">{t("commaSeparatedRupiah")}</div>
               <button className="btn btn-secondary mt-2 !py-1.5 text-xs" onClick={saveQuickMoney}>
-                <Icon name="save" /> Save amounts
+                <Icon name="save" /> {t("saveAmounts")}
               </button>
             </div>
           </Row>
-          <Row label="Services">
+          <Row label={t("services")}>
             <div className="text-sm text-muted">
-              Edit services directly on the Price Desk using the <b>Edit services</b> button.
+              {t("editServicesHint")}
             </div>
           </Row>
         </Section>
 
-        <Section title="Interface">
-          <Row label="Theme">
+        <Section title={t("interface")}>
+          <Row label={t("theme")}>
             <Segmented
               options={["light", "dark", "system"]}
               value={s.theme}
@@ -139,13 +126,25 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
           </Row>
         </Section>
 
-        <Section title="Data">
+        <Section title={t("language")}>
+          <Row label={t("language")}>
+            <div className="w-full">
+              <div className="inline-flex rounded-lg border p-0.5 w-full md:w-auto" style={{ borderColor: "var(--line)" }}>
+                <button onClick={() => setLocale("en")} className={"flex-1 md:flex-none px-3 py-1.5 rounded-md text-xs font-medium transition-snappy " + (locale === "en" ? "bg-[color:var(--brand)] text-white" : "hover:bg-[rgba(26,26,27,0.04)]")}>{t("english")}</button>
+                <button onClick={() => setLocale("id")} className={"flex-1 md:flex-none px-3 py-1.5 rounded-md text-xs font-medium transition-snappy " + (locale === "id" ? "bg-[color:var(--brand)] text-white" : "hover:bg-[rgba(26,26,27,0.04)]")}>{t("indonesian")}</button>
+              </div>
+              <div className="text-[11px] text-muted mt-1">{t("languageHint")}</div>
+            </div>
+          </Row>
+        </Section>
+
+        <Section title={t("data")}>
           <div className="flex flex-wrap gap-2">
             <button className="btn btn-secondary" onClick={doExport}>
-              <Icon name="download" /> Export data
+              <Icon name="download" /> {t("exportData")}
             </button>
             <button className="btn btn-secondary" onClick={() => fileRef.current?.click()}>
-              <Icon name="folder" /> Import data
+              <Icon name="folder" /> {t("importData")}
             </button>
             <input
               ref={fileRef}
@@ -159,22 +158,22 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
               }}
             />
             <button className="btn btn-danger" onClick={doClear}>
-              <Icon name="trash" /> Clear local data
+              <Icon name="trash" /> {t("clearData")}
             </button>
           </div>
           <div className="text-[11px] text-muted mt-2 leading-relaxed">
-            Everything is stored on this device. Use export to back up or move between computers.
-            Current quick money:{" "}
+            {t("dataStored")}
+            {t("currentQuickMoney")}{" "}
             {s.quickMoney.map((q) => format.rupiah(q)).join(", ")}
           </div>
         </Section>
 
-        <Section title="Shortcuts">
+        <Section title={t("shortcuts")}>
           <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-            <span className="kbd whitespace-nowrap">Ctrl K</span><span>Open command search</span>
-            <span className="kbd whitespace-nowrap">Ctrl V</span><span>Paste image in Quick Print</span>
-            <span className="kbd whitespace-nowrap">Ctrl P</span><span>Print (when image is loaded)</span>
-            <span className="kbd whitespace-nowrap">ESC</span><span>Close modals / sheets</span>
+            <span className="kbd whitespace-nowrap">Ctrl K</span><span>{t("shortcutSearch")}</span>
+            <span className="kbd whitespace-nowrap">Ctrl V</span><span>{t("shortcutPaste")}</span>
+            <span className="kbd whitespace-nowrap">Ctrl P</span><span>{t("shortcutPrint")}</span>
+            <span className="kbd whitespace-nowrap">ESC</span><span>{t("shortcutClose")}</span>
           </div>
         </Section>
       </div>
@@ -213,6 +212,8 @@ function Segmented<T extends string>({
   capitalize?: boolean;
   icons?: string[];
 }) {
+  const { t } = useI18n();
+  const tOptionLabel = (option: T) => ["light", "dark", "system", "portrait", "landscape"].includes(option) ? t(option as any) : option;
   return (
     <div className="inline-flex rounded-lg border p-0.5 w-full md:w-auto" style={{ borderColor: "var(--line)" }}>
       {options.map((o, i) => (
@@ -225,7 +226,7 @@ function Segmented<T extends string>({
           style={{ textTransform: capitalize ? "capitalize" : undefined }}
         >
           {icons && <Icon name={icons[i]} size="sm" />}
-          {o}
+          {tOptionLabel(o)}
         </button>
       ))}
     </div>

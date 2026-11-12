@@ -3,10 +3,12 @@ import { Icon } from "../../lib/icons";
 import { format, storage, uid, type TransactionItem, type Service } from "../../lib/storage";
 import { useStorage } from "../../lib/storage-hooks";
 import { useToast } from "../../lib/toast";
+import { useI18n } from "../../lib/i18n";
 
 export default function PriceDeskPage() {
   const { data, update } = useStorage();
   const toast = useToast();
+  const { t } = useI18n();
   const [items, setItems] = useState<TransactionItem[]>([]);
   const [cashGiven, setCashGiven] = useState<number>(0);
   const [fastMoneyMode, setFastMoneyMode] = useState(false);
@@ -42,7 +44,7 @@ export default function PriceDeskPage() {
     if (fastMoneyMode) {
       setCashGiven((c) => c + amount);
     } else {
-      addItem("Cash", amount);
+      addItem(t("cashItem"), amount);
     }
   };
 
@@ -67,7 +69,7 @@ export default function PriceDeskPage() {
     if (idx < 0) return;
     lastRemoved.current = { items: [...items], index: idx };
     setItems((list) => list.filter((it) => it.id !== id));
-    toast.push("Item removed");
+    toast.push(t("itemRemoved"));
   };
 
   const duplicateItem = (id: string) => {
@@ -82,7 +84,7 @@ export default function PriceDeskPage() {
     if (lastRemoved.current) {
       setItems(lastRemoved.current.items);
       lastRemoved.current = null;
-      toast.push("Undone");
+      toast.push(t("undone"));
     } else if (items.length) {
       lastRemoved.current = { items: [...items], index: items.length - 1 };
       setItems((list) => list.slice(0, -1));
@@ -94,13 +96,13 @@ export default function PriceDeskPage() {
     lastRemoved.current = { items: [...items], index: 0 };
     setItems([]);
     setCashGiven(0);
-    toast.push("Transaction cleared");
+    toast.push(t("transactionCleared"));
   };
 
   const addCustom = () => {
     const price = format.parse(customPrice);
     if (!customName.trim() || price <= 0) {
-      toast.push("Enter name and price", "error");
+      toast.push(t("enterNamePrice"), "error");
       return;
     }
     addItem(customName.trim(), price);
@@ -124,7 +126,7 @@ export default function PriceDeskPage() {
   };
 
   const copyTotal = () => {
-    navigator.clipboard?.writeText(`${format.rupiah(total)}`).then(() => toast.push("Total copied"));
+    navigator.clipboard?.writeText(`${format.rupiah(total)}`).then(() => toast.push(t("totalCopied")));
   };
 
   // Keyboard: numeric quick money via Numpad numbers mapped via Shift? Too complex. Skip.
@@ -133,19 +135,19 @@ export default function PriceDeskPage() {
     <div className="max-w-6xl mx-auto">
       <div className="flex items-end justify-between mb-5 gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Price Desk</h1>
-          <p className="text-sm text-muted mt-1">Answer "How much?" with one hand.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t("priceDesk")}</h1>
+          <p className="text-sm text-muted mt-1">{t("priceSubtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFastMoneyMode((v) => !v)}
             className={`btn ${fastMoneyMode ? "btn-primary" : "btn-secondary"}`}
-            title="Toggle fast money check mode"
+            title={t("cashMode")}
           >
-            <Icon name="cash" /> {fastMoneyMode ? "Cash mode: on" : "Cash mode"}
+            <Icon name="cash" /> {fastMoneyMode ? t("cashModeOn") : t("cashMode")}
           </button>
           <button onClick={() => setEditServices((v) => !v)} className="btn btn-secondary">
-            <Icon name={editServices ? "check" : "edit"} /> {editServices ? "Done" : "Edit services"}
+            <Icon name={editServices ? "check" : "edit"} /> {editServices ? t("done") : t("editServices")}
           </button>
         </div>
       </div>
@@ -154,7 +156,7 @@ export default function PriceDeskPage() {
         {/* Services / Quick money */}
         <section className="card p-4 space-y-4 h-fit md:sticky md:top-20 order-2 md:order-1">
           <div>
-            <div className="label mb-2">Services</div>
+            <div className="label mb-2">{t("services")}</div>
             <div className="grid grid-cols-2 gap-2">
               {data.services.map((s) => (
                 <div key={s.id} className="relative group">
@@ -169,7 +171,7 @@ export default function PriceDeskPage() {
                     style={{ borderColor: "var(--line)", background: "var(--surface)" }}
                   >
                     <div className="text-[11px] text-muted uppercase tracking-wide">
-                      {editServices ? "Tap to edit" : "Tap to add"}
+                      {editServices ? t("tapToEdit") : t("tapToAdd")}
                     </div>
                     <div className="font-semibold text-sm truncate mt-0.5">{s.name}</div>
                     <div className="num text-sm mt-0.5" style={{ color: "var(--brand)" }}>{format.rupiah(s.price)}</div>
@@ -186,13 +188,13 @@ export default function PriceDeskPage() {
               {editServices && (
                 <button
                   onClick={() => {
-                    const svc: Service = { id: "svc-" + uid(), name: "New service", price: 1000 };
+                    const svc: Service = { id: "svc-" + uid(), name: t("newService"), price: 1000 };
                     saveService(svc);
                   }}
                   className="w-full rounded-xl border border-dashed px-3 py-3 text-sm text-muted hover:text-[color:var(--brand)] hover:border-[color:var(--brand)] transition-snappy"
                   style={{ borderColor: "var(--line)" }}
                 >
-                  <Icon name="plus" /> Add service
+                  <Icon name="plus" /> {t("addService")}
                 </button>
               )}
               {!editServices && (
@@ -201,7 +203,7 @@ export default function PriceDeskPage() {
                   className="w-full rounded-xl border border-dashed px-3 py-3 text-sm text-muted hover:text-[color:var(--brand)] hover:border-[color:var(--brand)] transition-snappy"
                   style={{ borderColor: "var(--line)" }}
                 >
-                  <Icon name="plus" /> Custom
+                  <Icon name="plus" /> {t("custom")}
                 </button>
               )}
             </div>
@@ -209,7 +211,7 @@ export default function PriceDeskPage() {
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <div className="label">Quick money</div>
+              <div className="label">{t("quickMoney")}</div>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {data.settings.quickMoney.map((amt) => (
@@ -229,14 +231,14 @@ export default function PriceDeskPage() {
         <section className="card order-1 md:order-2">
           <div className="px-4 py-3 flex items-center justify-between border-b" style={{ borderColor: "var(--line)" }}>
             <div className="font-semibold flex items-center gap-2">
-              <Icon name="cash" /> Transaction
+              <Icon name="cash" /> {t("transaction")}
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={undo} className="btn btn-ghost !py-1.5 !px-2 text-xs" title="Undo (last)">
-                <Icon name="undo" /> Undo
+              <button onClick={undo} className="btn btn-ghost !py-1.5 !px-2 text-xs" title={t("undoLast")}>
+                <Icon name="undo" /> {t("undo")}
               </button>
-              <button onClick={clear} className="btn btn-danger !py-1.5 !px-2 text-xs" title="Clear all">
-                <Icon name="trash" /> Clear
+              <button onClick={clear} className="btn btn-danger !py-1.5 !px-2 text-xs" title={t("clearAll")}>
+                <Icon name="trash" /> {t("clearAll")}
               </button>
             </div>
           </div>
@@ -246,9 +248,9 @@ export default function PriceDeskPage() {
               <div className="w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-3" style={{ background: "color-mix(in srgb, var(--brand) 10%, transparent)", color: "var(--brand)" }}>
                 <Icon name="calculator" size="lg" />
               </div>
-              <div className="font-semibold">Ready to calculate</div>
+              <div className="font-semibold">{t("readyToCalculate")}</div>
               <p className="text-sm text-muted mt-1 max-w-sm mx-auto">
-                Tap a service, press a quick money button, or type a custom price. No confirmations — it just adds.
+                {t("calculateHint")}
               </p>
             </div>
           ) : (
@@ -261,7 +263,7 @@ export default function PriceDeskPage() {
                       <button
                         className="opacity-0 group-hover:opacity-100 text-muted hover:text-[color:var(--brand)] text-xs transition"
                         onClick={() => duplicateItem(it.id)}
-                        title="Duplicate"
+                        title={t("duplicate")}
                       >
                         <Icon name="copy" />
                       </button>
@@ -289,7 +291,7 @@ export default function PriceDeskPage() {
                           onChange={(e) => setItemPrice(it.id, format.parse(e.target.value))}
                         />
                       </div>
-                      <button onClick={() => removeItem(it.id)} className="ml-auto text-muted hover:text-[color:#b42318] text-xs" title="Remove">
+                      <button onClick={() => removeItem(it.id)} className="ml-auto text-muted hover:text-[color:#b42318] text-xs" title={t("remove")}>
                         <Icon name="trash" />
                       </button>
                     </div>
@@ -303,14 +305,14 @@ export default function PriceDeskPage() {
           {/* Total bar */}
           <div className="px-4 py-4 border-t flex items-center justify-between" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--brand) 4%, transparent)" }}>
             <div>
-              <div className="text-xs uppercase tracking-wide text-muted">Total</div>
+              <div className="text-xs uppercase tracking-wide text-muted">{t("total")}</div>
               <div className="num text-3xl md:text-4xl font-extrabold tracking-tight">
                 {format.rupiah(total)}
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={copyTotal} className="btn btn-secondary" title="Copy total">
-                <Icon name="copy" /> Copy
+              <button onClick={copyTotal} className="btn btn-secondary" title={t("copyTotal")}>
+                <Icon name="copy" /> {t("copy")}
               </button>
             </div>
           </div>
@@ -318,9 +320,9 @@ export default function PriceDeskPage() {
 
         {/* Cash check */}
         <aside className="card p-4 space-y-3 h-fit md:sticky md:top-20 order-3">
-          <div className="label">Cash check</div>
+          <div className="label">{t("cashCheck")}</div>
           <div>
-            <div className="text-xs text-muted mb-1">Amount received</div>
+            <div className="text-xs text-muted mb-1">{t("amountReceived")}</div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted">Rp</span>
               <input
@@ -338,24 +340,24 @@ export default function PriceDeskPage() {
               onClick={() => setCashGiven(total)}
               className="btn btn-secondary"
             >
-              Exact
+              {t("exact")}
             </button>
             <button
               onClick={() => setCashGiven(0)}
               className="btn btn-ghost text-muted border"
               style={{ borderColor: "var(--line)" }}
             >
-              Reset
+              {t("reset")}
             </button>
           </div>
           <hr className="sep" />
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <div className="text-[11px] uppercase text-muted">Expected</div>
+              <div className="text-[11px] uppercase text-muted">{t("expected")}</div>
               <div className="num font-semibold">{format.rupiah(total)}</div>
             </div>
             <div>
-              <div className="text-[11px] uppercase text-muted">Received</div>
+              <div className="text-[11px] uppercase text-muted">{t("received")}</div>
               <div className="num font-semibold">{format.rupiah(cashGiven)}</div>
             </div>
           </div>
@@ -371,14 +373,14 @@ export default function PriceDeskPage() {
             }}
           >
             <div className="text-[11px] uppercase tracking-wide">
-              {cashGiven === 0 ? "Change" : change >= 0 ? "Change" : "Short"}
+              {cashGiven === 0 ? t("change") : change >= 0 ? t("change") : t("short")}
             </div>
             <div className="num text-2xl font-bold">
               {cashGiven === 0 ? "—" : format.rupiah(Math.abs(change))}
             </div>
           </div>
           <div className="text-[11px] text-muted text-center leading-relaxed pt-1">
-            Tip: turn on <b>Cash mode</b> so quick-money buttons add to cash received.
+            {t("cashModeTip")}
           </div>
         </aside>
       </div>
@@ -406,6 +408,7 @@ function ServiceEditor({
   onSave: (s: Service) => void;
   onDelete: () => void;
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState(svc.name);
   const [price, setPrice] = useState(String(svc.price));
   return (
@@ -414,23 +417,23 @@ function ServiceEditor({
         className="input !py-1.5 text-xs"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Service name"
+        placeholder={t("serviceName")}
       />
       <input
         className="input !py-1.5 text-xs num"
         value={price}
         inputMode="numeric"
         onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ""))}
-        placeholder="Price"
+        placeholder={t("price")}
       />
       <div className="flex gap-1">
         <button
           className="btn btn-primary !py-1 !px-2 text-xs flex-1"
           onClick={() => onSave({ ...svc, name: name.trim() || svc.name, price: Number(price) || svc.price })}
         >
-          Save
+          {t("save")}
         </button>
-        <button className="btn btn-danger !py-1 !px-2 text-xs" onClick={onDelete} title="Delete service">
+        <button className="btn btn-danger !py-1 !px-2 text-xs" onClick={onDelete} title={t("deleteService")}>
           <Icon name="trash" />
         </button>
       </div>
@@ -453,20 +456,21 @@ function CustomEntry({
   onCancel: () => void;
   onAdd: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-40 backdrop flex items-end md:items-center justify-center no-print fade-in p-0 md:p-4" onClick={onCancel}>
       <div className="card w-full max-w-sm sheet md:!rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 flex items-center justify-between border-b" style={{ borderColor: "var(--line)" }}>
-          <h3 className="font-semibold">Add custom item</h3>
-          <button className="btn btn-ghost !p-2" onClick={onCancel} aria-label="Close"><Icon name="xmark" /></button>
+          <h3 className="font-semibold">{t("addCustomItem")}</h3>
+          <button className="btn btn-ghost !p-2" onClick={onCancel} aria-label={t("close")}><Icon name="xmark" /></button>
         </div>
         <div className="p-5 space-y-3">
           <div>
-            <div className="label mb-1">Name</div>
+            <div className="label mb-1">{t("name")}</div>
             <input autoFocus className="input" value={name} onChange={(e) => onName(e.target.value)} placeholder="e.g. Jilid, Design" />
           </div>
           <div>
-            <div className="label mb-1">Price (Rp)</div>
+            <div className="label mb-1">{t("priceRp")}</div>
             <input
               className="input num font-semibold"
               inputMode="numeric"
@@ -478,8 +482,8 @@ function CustomEntry({
           </div>
         </div>
         <div className="px-5 py-3 border-t flex items-center justify-end gap-2" style={{ borderColor: "var(--line)" }}>
-          <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-          <button className="btn btn-primary" onClick={onAdd}><Icon name="plus" /> Add item</button>
+          <button className="btn btn-secondary" onClick={onCancel}>{t("cancel")}</button>
+          <button className="btn btn-primary" onClick={onAdd}><Icon name="plus" /> {t("addItem")}</button>
         </div>
       </div>
     </div>

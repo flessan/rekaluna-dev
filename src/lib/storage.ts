@@ -6,9 +6,9 @@ export type ThemeMode = "light" | "dark" | "system";
 export interface PrintPrefs {
   paper: "A4" | "F4" | "Letter" | "Legal";
   orientation: "portrait" | "landscape";
-  copies: number;
   scaling: "fit" | "fill" | "original";
   margin: "none" | "small" | "normal" | "large";
+  background: string;
 }
 
 export interface Service {
@@ -102,9 +102,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   print: {
     paper: "A4",
     orientation: "portrait",
-    copies: 1,
     scaling: "fit",
     margin: "normal",
+    background: "#FFFFFF",
   },
   quickMoney: DEFAULT_QUICK_MONEY,
 };

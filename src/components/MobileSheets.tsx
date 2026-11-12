@@ -5,12 +5,14 @@ import { registry } from "../lib/commands";
 import { useNavigate } from "react-router-dom";
 import { useStorage } from "../lib/storage-hooks";
 import { storage } from "../lib/storage";
+import { useI18n } from "../lib/i18n";
 
 export function MobileSearch({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const nav = useNavigate();
   const { data } = useStorage();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100);
@@ -26,13 +28,13 @@ export function MobileSearch({ open, onClose }: { open: boolean; onClose: () => 
           ref={inputRef}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search tools, resources, settings…"
+          placeholder={t("searchTools")}
           className="flex-1 bg-transparent outline-none text-sm"
         />
       </div>
       <div className="pb-6 space-y-1">
         {commands.length === 0 && (
-          <div className="text-center text-sm text-muted py-6">No matches.</div>
+          <div className="text-center text-sm text-muted py-6">{t("noMatches")}</div>
         )}
         {commands.map((c) => (
           <button
@@ -78,25 +80,26 @@ export function MoreSheet({
   onOpenModal: (id: string) => void;
 }) {
   const nav = useNavigate();
+  const { t } = useI18n();
   const go = (p: string) => {
     nav(p);
     onClose();
   };
   return (
-    <BottomSheet open={open} onClose={onClose} title="More">
+    <BottomSheet open={open} onClose={onClose} title={t("more")}>
       <div className="pb-6">
         <div className="grid grid-cols-4 gap-2 mb-3">
-          <ActionTile icon="gear" label="Settings" onClick={() => { onOpenModal("settings"); onClose(); }} />
-          <ActionTile icon="keyboard" label="Shortcuts" onClick={() => { onOpenModal("shortcuts"); onClose(); }} />
-          <ActionTile icon="heart" label="Support" onClick={() => go("/support")} />
-          <ActionTile icon="circle-info" label="About" onClick={() => go("/about")} />
+          <ActionTile icon="gear" label={t("settings")} onClick={() => { onOpenModal("settings"); onClose(); }} />
+          <ActionTile icon="keyboard" label={t("shortcuts")} onClick={() => { onOpenModal("shortcuts"); onClose(); }} />
+          <ActionTile icon="heart" label={t("support")} onClick={() => go("/support")} />
+          <ActionTile icon="circle-info" label={t("about")} onClick={() => go("/about")} />
         </div>
-        <div className="label mb-2 px-1">Navigate</div>
+        <div className="label mb-2 px-1">{t("navigate")}</div>
         <div className="card overflow-hidden">
-          <RowItem icon="house" label="Workspace" onClick={() => go("/")} />
-          <RowItem icon="print" label="Quick Print" onClick={() => go("/print")} />
-          <RowItem icon="calculator" label="Price Desk" onClick={() => go("/price")} />
-          <RowItem icon="folder" label="Resource Center" onClick={() => go("/resources")} last />
+          <RowItem icon="house" label={t("workspace")} onClick={() => go("/")} />
+          <RowItem icon="print" label={t("quickPrint")} onClick={() => go("/print")} />
+          <RowItem icon="calculator" label={t("priceDesk")} onClick={() => go("/price")} />
+          <RowItem icon="folder" label={t("resourceCenter")} onClick={() => go("/resources")} last />
         </div>
       </div>
     </BottomSheet>
