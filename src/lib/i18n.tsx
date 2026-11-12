@@ -88,6 +88,8 @@ const messages = {
     license: "License", licenseBody: "Rekaluna is released under the MIT License. You can use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software, provided the original copyright notice is included.", supportIntro: "Rekaluna is free, open-source, and built for people who need a simple tool for everyday printing work. If Rekaluna helps your workflow, you can optionally donate through the QRIS code below.",
     supportNoObligation: "There is absolutely no obligation. Using Rekaluna is already meaningful support.", thankYou: "Thank you.", copySuffix: "copy", openIssuePrompt: "Open an issue or pull request on", copyDonation: "Copy donation link", openDonation: "Open donation page",
     donationCopied: "Donation link copied", contributionLine: "Rekaluna does not collect data, show ads, or require accounts. Every contribution — code, feedback, translations, or a kind word — helps the project.",
+    layoutShape: "Layout shape", selectedCount: "objects selected", cropMode: "Adjust crop", finishCrop: "Finish crop", resetCrop: "Reset crop", cropZoom: "Crop zoom", cropHorizontal: "Horizontal position", cropVertical: "Vertical position", cropDragHint: "Drag the image inside its frame to reposition the crop.",
+    bringToFront: "Bring to front", sendToBack: "Send to back", selectAll: "Select all", paste: "Paste", cut: "Cut", addSquareFrame: "Add square frame", addCircleFrame: "Add circle frame", addRoundedFrame: "Add rounded frame",
 
   },
   id: {
@@ -175,6 +177,8 @@ const messages = {
     license: "Lisensi", licenseBody: "Rekaluna dirilis dengan Lisensi MIT. Kamu dapat menggunakan, menyalin, mengubah, menggabungkan, menerbitkan, mendistribusikan, mensublisensikan, atau menjual salinan perangkat lunak dengan tetap menyertakan pemberitahuan hak cipta asli.", supportIntro: "Rekaluna gratis, bersumber terbuka, dan dibuat untuk siapa pun yang membutuhkan alat sederhana untuk pekerjaan cetak sehari-hari. Jika Rekaluna membantu pekerjaanmu, kamu boleh berdonasi melalui kode QRIS di bawah.",
     supportNoObligation: "Tidak ada kewajiban sama sekali. Menggunakan Rekaluna saja sudah menjadi bentuk dukungan yang berarti.", thankYou: "Terima kasih.", copySuffix: "salinan", openIssuePrompt: "Buat issue atau pull request di", copyDonation: "Salin tautan donasi", openDonation: "Buka halaman donasi",
     donationCopied: "Tautan donasi disalin", contributionLine: "Rekaluna tidak mengumpulkan data, menampilkan iklan, atau mewajibkan akun. Setiap kontribusi — kode, masukan, terjemahan, atau dukungan — membantu proyek ini.",
+    layoutShape: "Bentuk tata letak", selectedCount: "objek dipilih", cropMode: "Atur potongan", finishCrop: "Selesai memotong", resetCrop: "Reset potongan", cropZoom: "Perbesaran potongan", cropHorizontal: "Posisi horizontal", cropVertical: "Posisi vertikal", cropDragHint: "Seret gambar di dalam bingkai untuk mengatur area potong.",
+    bringToFront: "Pindahkan ke paling depan", sendToBack: "Pindahkan ke paling belakang", selectAll: "Pilih semua", paste: "Tempel", cut: "Potong", addSquareFrame: "Tambah bingkai kotak", addCircleFrame: "Tambah bingkai lingkaran", addRoundedFrame: "Tambah bingkai sudut bulat",
 
   },
 } as const;

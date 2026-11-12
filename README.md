@@ -32,7 +32,7 @@ center for drivers and PDF tools.
 ## Sections
 
 - **Workspace** — greeting, quick actions, favorites, recent activity.
-- **Quick Print** — multi-image sheet editor with drag-and-drop, snap guides, millimeter positioning, arrow-key nudging, duplicate objects, undo/redo, and square/rounded/circle/oval frames. Drop an image onto a frame to fill it. Includes 2-, 3-, 4-, and 6-frame layout presets, a paper background color palette with custom colors, and sheet-only printing that excludes the app interface.
+- **Quick Print** — multi-image sheet editor with drag-and-drop, snap guides, millimeter positioning, group selection, keyboard editing, crop/pan controls, and square/rounded/circle/oval frames. Drag an existing image onto a frame to fill it. 2-, 3-, 4-, and 6-up layouts inherit the selected frame shape, including true circular cells. Right-click objects for crop, fit/fill, replace, rotate, layer order, duplicate, copy/cut, and delete actions. Includes a custom paper background palette and isolated sheet-only printing.
 - **Price Desk** — large money buttons, service chips, live totals, cash/change
   mode, undo/duplicate/clear, custom items.
 - **Resource Center** — drivers, PDF tools, image tools, and utilities. Add your own.
@@ -51,7 +51,11 @@ center for drivers and PDF tools.
 | `← ↑ → ↓`    | Move the selected object by 1 mm |
 | `Alt + arrows` | Fine movement by 0.1 mm |
 | `Shift + arrows` | Move by 10 mm |
-| `Ctrl + D`   | Duplicate selected object   |
+| `Ctrl + A`   | Select all canvas objects   |
+| `Ctrl + C` / `Ctrl + X` / `Ctrl + V` | Copy / cut / paste objects |
+| `Ctrl + D`   | Duplicate selected object(s) |
+| `Shift + click` / `Ctrl + click` | Add / toggle multi-selection |
+| `Right click` | Open the object context menu |
 | `Ctrl + Z` / `Ctrl + Shift + Z` | Undo / redo canvas edits |
 | `↑ ↓` `↵`    | Navigate lists / run command |
 

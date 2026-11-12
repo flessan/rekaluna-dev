@@ -24,19 +24,25 @@ interface CanvasObject {
   rotation: number;
   shape: FrameShape;
   fit: ImageFit;
+  cropScale: number;
+  cropX: number;
+  cropY: number;
   zIndex: number;
 }
 
 interface DragState {
   id: string;
   pointerId: number;
-  mode: "move" | "resize";
+  mode: "move" | "resize" | "crop";
   clientX: number;
   clientY: number;
   x: number;
   y: number;
   width: number;
   height: number;
+  cropX: number;
+  cropY: number;
+  selectedIds: string[];
   initialObjects: CanvasObject[];
 }
 
@@ -83,6 +89,12 @@ export default function QuickPrintPage() {
   const undoStack = useRef<CanvasObject[][]>([]);
   const redoStack = useRef<CanvasObject[][]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [layoutShape, setLayoutShape] = useState<FrameShape>("rounded");
+  const [cropMode, setCropMode] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; objectId: string | null } | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const clipboardRef = useRef<CanvasObject[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [precise, setPrecise] = useState(false);
@@ -103,6 +115,8 @@ export default function QuickPrintPage() {
   const innerWidth = Math.max(10, paperWidth - margin * 2);
   const innerHeight = Math.max(10, paperHeight - margin * 2);
   const selected = objects.find((item) => item.id === selectedId) ?? null;
+  const selectedCount = selectedIds.length || (selectedId ? 1 : 0);
+  const contextObject = contextMenu?.objectId ? objects.find((item) => item.id === contextMenu.objectId) ?? null : null;
 
   const replaceWithoutHistory = useCallback((next: CanvasObject[]) => {
     objectsRef.current = next;
@@ -125,6 +139,7 @@ export default function QuickPrintPage() {
     redoStack.current = [...redoStack.current.slice(-39), objectsRef.current];
     replaceWithoutHistory(previous);
     setSelectedId(previous.length ? previous[previous.length - 1].id : null);
+    setSelectedIds(previous.length ? [previous[previous.length - 1].id] : []);
   }, [replaceWithoutHistory]);
 
   const redo = useCallback(() => {
@@ -133,6 +148,7 @@ export default function QuickPrintPage() {
     undoStack.current = [...undoStack.current.slice(-39), objectsRef.current];
     replaceWithoutHistory(next);
     setSelectedId(next.length ? next[next.length - 1].id : null);
+    setSelectedIds(next.length ? [next[next.length - 1].id] : []);
   }, [replaceWithoutHistory]);
 
   useEffect(() => {
@@ -161,34 +177,38 @@ export default function QuickPrintPage() {
       x: clamp((paperWidth - size) / 2, margin, paperWidth - margin - size),
       y: clamp((paperHeight - size) / 2, margin, paperHeight - margin - size),
       width: size, height: shape === "oval" ? 44 : size,
-      rotation: 0, shape, fit: "cover", zIndex: objectsRef.current.length + 1,
+      rotation: 0, shape, fit: "cover", cropScale: 1, cropX: 50, cropY: 50,
+      zIndex: objectsRef.current.length + 1,
     };
     commit([...objectsRef.current, item]);
     setSelectedId(item.id);
+    setSelectedIds([item.id]);
   };
 
   const addLayout = (count: number) => {
     const columns = prefs.orientation === "landscape" ? Math.min(count, 3) : Math.min(count, 2);
-    const rows = Math.ceil(count / columns);
-    const gap = 5;
+    const rows = Math.ceil(count / columns), gap = 5;
     const cellWidth = (innerWidth - gap * (columns - 1)) / columns;
     const cellHeight = (innerHeight - gap * (rows - 1)) / rows;
     const next = Array.from({ length: count }, (_, index) => {
-      const column = index % columns;
-      const row = Math.floor(index / columns);
-      let x = margin + column * (cellWidth + gap);
-      const y = margin + row * (cellHeight + gap);
-      if (count === 3 && index === 2 && columns === 2) x = margin + (innerWidth - cellWidth) / 2;
+      const column = index % columns, row = Math.floor(index / columns);
+      let slotX = margin + column * (cellWidth + gap);
+      const slotY = margin + row * (cellHeight + gap);
+      if (count === 3 && index === 2 && columns === 2) slotX = margin + (innerWidth - cellWidth) / 2;
+      const circular = layoutShape === "circle";
+      const width = circular ? Math.min(cellWidth, cellHeight) : cellWidth;
+      const height = circular ? width : cellHeight;
       return {
         id: uid(), kind: "frame" as const, src: null, name: t("frame") + " " + (index + 1),
         naturalWidth: 0, naturalHeight: 0,
-        x, y, width: cellWidth, height: cellHeight,
-        rotation: 0, shape: "rounded" as FrameShape, fit: "cover" as ImageFit,
-        zIndex: objectsRef.current.length + index + 1,
+        x: slotX + (cellWidth - width) / 2, y: slotY + (cellHeight - height) / 2,
+        width, height, rotation: 0, shape: layoutShape, fit: "cover" as ImageFit,
+        cropScale: 1, cropX: 50, cropY: 50, zIndex: objectsRef.current.length + index + 1,
       };
     });
     commit([...objectsRef.current, ...next]);
     setSelectedId(next[0]?.id ?? null);
+    setSelectedIds(next.map((item) => item.id));
   };
 
   const loadFiles = useCallback((files: File[], targetId?: string, dropPoint?: { x: number; y: number }) => {
@@ -208,10 +228,11 @@ export default function QuickPrintPage() {
 
           if (frameTarget) {
             const filled = current.map((item) => item.id === frameTarget.id
-              ? { ...item, src, name: file.name || t("image"), naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight }
+              ? { ...item, src, name: file.name || t("image"), naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight, fit: "cover", cropScale: 1, cropX: 50, cropY: 50 }
               : item);
             commit(filled);
             setSelectedId(frameTarget.id);
+            setSelectedIds([frameTarget.id]);
           } else {
             const size = clamp(Math.min(innerWidth * 0.52, innerHeight * 0.36), 28, 90);
             const aspect = image.naturalWidth > 0 && image.naturalHeight > 0
@@ -228,10 +249,11 @@ export default function QuickPrintPage() {
               x: clamp(pointX + index * 3, 0, paperWidth - width),
               y: clamp(pointY + index * 3, 0, paperHeight - height),
               width, height, rotation: 0, shape: "square",
-              fit: "contain", zIndex: current.length + 1,
+              fit: "contain", cropScale: 1, cropX: 50, cropY: 50, zIndex: current.length + 1,
             };
             commit([...objectsRef.current, item]);
             setSelectedId(item.id);
+            setSelectedIds([item.id]);
           }
 
           storage.addRecent({
@@ -298,92 +320,162 @@ export default function QuickPrintPage() {
     return { value: clamp(best, 0, length - size), guide };
   };
 
-  const startDrag = (event: ReactPointerEvent<HTMLDivElement>, item: CanvasObject, mode: "move" | "resize") => {
+  const getFrameAtClientPoint = useCallback((clientX: number, clientY: number, excludeId?: string) => {
+    const rect = artboardRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const x = (clientX - rect.left) / previewScale, y = (clientY - rect.top) / previewScale;
+    return objectsRef.current.filter((item) => item.kind === "frame" && item.id !== excludeId
+      && x >= item.x && x <= item.x + item.width && y >= item.y && y <= item.y + item.height)
+      .sort((a, b) => b.zIndex - a.zIndex)[0] ?? null;
+  }, [previewScale]);
+
+  const startDrag = (event: ReactPointerEvent<HTMLDivElement>, item: CanvasObject, mode: "move" | "resize" = "move") => {
     event.stopPropagation();
+    if (event.button !== 0) return;
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+      event.preventDefault();
+      const nextIds = event.shiftKey
+        ? (selectedIds.includes(item.id) ? selectedIds : [...selectedIds, item.id])
+        : (selectedIds.includes(item.id) ? selectedIds.filter((id) => id !== item.id) : [...selectedIds, item.id]);
+      setSelectedIds(nextIds);
+      setSelectedId(nextIds.includes(item.id) ? item.id : nextIds[nextIds.length - 1] ?? null);
+      setContextMenu(null);
+      return;
+    }
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
+    const ids = selectedIds.includes(item.id) ? selectedIds : [item.id];
     setSelectedId(item.id);
+    if (!selectedIds.includes(item.id)) setSelectedIds([item.id]);
     dragRef.current = {
-      id: item.id, pointerId: event.pointerId, mode,
+      id: item.id, pointerId: event.pointerId,
+      mode: mode === "resize" ? "resize" : cropMode && item.src ? "crop" : "move",
       clientX: event.clientX, clientY: event.clientY,
       x: item.x, y: item.y, width: item.width, height: item.height,
-      initialObjects: objectsRef.current,
+      cropX: item.cropX, cropY: item.cropY, selectedIds: ids, initialObjects: objectsRef.current,
     };
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const dx = (event.clientX - drag.clientX) / previewScale;
-    const dy = (event.clientY - drag.clientY) / previewScale;
-    const current = objectsRef.current;
-    const item = current.find((object) => object.id === drag.id);
+    const dx = (event.clientX - drag.clientX) / previewScale, dy = (event.clientY - drag.clientY) / previewScale;
+    const current = objectsRef.current, item = current.find((object) => object.id === drag.id);
     if (!item) return;
-
     if (drag.mode === "resize") {
       const width = clamp(drag.width + dx, 8, paperWidth - item.x);
       const height = clamp(drag.height + dy, 8, paperHeight - item.y);
       replaceWithoutHistory(current.map((object) => object.id === drag.id ? { ...object, width, height } : object));
-      setGuides({ x: null, y: null });
-      return;
+      setGuides({ x: null, y: null }); return;
     }
-
-    let x = clamp(drag.x + dx, 0, paperWidth - item.width);
-    let y = clamp(drag.y + dy, 0, paperHeight - item.height);
-    let guideX: number | null = null;
-    let guideY: number | null = null;
+    if (drag.mode === "crop") {
+      const cropX = clamp(drag.cropX - dx / Math.max(8, drag.width) * 100, 0, 100);
+      const cropY = clamp(drag.cropY - dy / Math.max(8, drag.height) * 100, 0, 100);
+      replaceWithoutHistory(current.map((object) => object.id === drag.id ? { ...object, cropX, cropY } : object));
+      setGuides({ x: null, y: null }); setDropTargetId(null); return;
+    }
+    if (drag.selectedIds.length > 1) {
+      const moving = drag.initialObjects.filter((object) => drag.selectedIds.includes(object.id));
+      const minX = Math.min(...moving.map((object) => object.x)), minY = Math.min(...moving.map((object) => object.y));
+      const maxX = Math.max(...moving.map((object) => object.x + object.width)), maxY = Math.max(...moving.map((object) => object.y + object.height));
+      const moveX = clamp(dx, -minX, paperWidth - maxX), moveY = clamp(dy, -minY, paperHeight - maxY);
+      const byId = new Map<string, CanvasObject>(moving.map((object) => [object.id, object] as const));
+      replaceWithoutHistory(current.map((object) => {
+        const original = byId.get(object.id);
+        return original ? { ...object, x: original.x + moveX, y: original.y + moveY } : object;
+      }));
+      setGuides({ x: null, y: null }); setDropTargetId(null); return;
+    }
+    let x = clamp(drag.x + dx, 0, paperWidth - item.width), y = clamp(drag.y + dy, 0, paperHeight - item.height);
+    let guideX: number | null = null, guideY: number | null = null;
     if (snapEnabled) {
-      const snappedX = snapAxis(x, item.width, "x", item.id);
-      const snappedY = snapAxis(y, item.height, "y", item.id);
-      x = snappedX.value;
-      y = snappedY.value;
-      guideX = snappedX.guide;
-      guideY = snappedY.guide;
+      const sx = snapAxis(x, item.width, "x", item.id), sy = snapAxis(y, item.height, "y", item.id);
+      x = sx.value; y = sy.value; guideX = sx.guide; guideY = sy.guide;
     }
     replaceWithoutHistory(current.map((object) => object.id === drag.id ? { ...object, x, y } : object));
     setGuides({ x: guideX, y: guideY });
+    const frame = item.src ? getFrameAtClientPoint(event.clientX, event.clientY, item.id) : null;
+    setDropTargetId(frame?.id ?? null);
   };
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    if (JSON.stringify(drag.initialObjects) !== JSON.stringify(objectsRef.current)) {
+    let finalObjects = objectsRef.current;
+    const source = drag.initialObjects.find((object) => object.id === drag.id);
+    const target = dropTargetId ? finalObjects.find((object) => object.id === dropTargetId && object.kind === "frame") : null;
+    if (drag.mode === "move" && drag.selectedIds.length === 1 && source?.src && target && source.id !== target.id) {
+      finalObjects = finalObjects.filter((object) => object.id !== source.id).map((object) => object.id === target.id
+        ? { ...object, src: source.src, name: source.name, naturalWidth: source.naturalWidth, naturalHeight: source.naturalHeight, fit: "cover", cropScale: 1, cropX: 50, cropY: 50 }
+        : object);
+      setSelectedId(target.id); setSelectedIds([target.id]);
+    }
+    if (JSON.stringify(drag.initialObjects) !== JSON.stringify(finalObjects)) {
       undoStack.current = [...undoStack.current.slice(-39), drag.initialObjects];
       redoStack.current = [];
+      objectsRef.current = finalObjects; setObjects(finalObjects);
     }
-    dragRef.current = null;
-    setGuides({ x: null, y: null });
+    dragRef.current = null; setGuides({ x: null, y: null }); setDropTargetId(null);
   };
 
   const updateSelected = (patch: Partial<CanvasObject>) => {
-    if (!selectedId) return;
-    commit((current) => current.map((item) => item.id === selectedId ? { ...item, ...patch } : item));
+    const ids = selectedIds.length ? selectedIds : selectedId ? [selectedId] : [];
+    if (!ids.length) return;
+    commit((current) => current.map((item) => ids.includes(item.id) ? { ...item, ...patch } : item));
   };
 
   const duplicateSelected = () => {
-    if (!selected) return;
-    const duplicate = { ...selected, id: uid(), name: selected.name + " (" + t("copySuffix") + ")", x: clamp(selected.x + 8, 0, paperWidth - selected.width), y: clamp(selected.y + 8, 0, paperHeight - selected.height), zIndex: objectsRef.current.length + 1 };
-    commit([...objectsRef.current, duplicate]);
-    setSelectedId(duplicate.id);
+    const ids = selectedIds.length ? selectedIds : selectedId ? [selectedId] : [];
+    const current = objectsRef.current, chosen = current.filter((item) => ids.includes(item.id));
+    if (!chosen.length) return;
+    const copies = chosen.map((item, index) => ({
+      ...item, id: uid(), name: item.name + " (" + t("copySuffix") + ")",
+      x: clamp(item.x + 8, 0, paperWidth - item.width), y: clamp(item.y + 8, 0, paperHeight - item.height),
+      zIndex: current.length + index + 1,
+    }));
+    commit([...current, ...copies]); setSelectedId(copies[copies.length - 1].id); setSelectedIds(copies.map((item) => item.id));
   };
-
   const deleteSelected = () => {
-    if (!selectedId) return;
-    commit(objectsRef.current.filter((item) => item.id !== selectedId));
-    setSelectedId(null);
+    const ids = selectedIds.length ? selectedIds : selectedId ? [selectedId] : [];
+    if (!ids.length) return;
+    commit(objectsRef.current.filter((item) => !ids.includes(item.id)));
+    setSelectedId(null); setSelectedIds([]); setCropMode(false);
   };
-
+  const copySelection = () => {
+    const ids = selectedIds.length ? selectedIds : selectedId ? [selectedId] : [];
+    clipboardRef.current = objectsRef.current.filter((item) => ids.includes(item.id)).map((item) => ({ ...item }));
+  };
+  const pasteSelection = () => {
+    if (!clipboardRef.current.length) return;
+    const current = objectsRef.current;
+    const copies = clipboardRef.current.map((item, index) => ({
+      ...item, id: uid(), name: item.name + " (" + t("copySuffix") + ")",
+      x: clamp(item.x + 8, 0, paperWidth - item.width), y: clamp(item.y + 8, 0, paperHeight - item.height),
+      zIndex: current.length + index + 1,
+    }));
+    commit([...current, ...copies]); setSelectedId(copies[copies.length - 1].id); setSelectedIds(copies.map((item) => item.id));
+  };
   const rotateSelected = () => {
     if (!selected) return;
-    updateSelected({ rotation: (selected.rotation + 90) % 360 });
+    const ids = selectedIds.length ? selectedIds : [selected.id], chosen = objectsRef.current.filter((item) => ids.includes(item.id));
+    if (chosen.length === 1) { updateSelected({ rotation: (selected.rotation + 90) % 360 }); return; }
+    const cx = (Math.min(...chosen.map((item) => item.x)) + Math.max(...chosen.map((item) => item.x + item.width))) / 2;
+    const cy = (Math.min(...chosen.map((item) => item.y)) + Math.max(...chosen.map((item) => item.y + item.height))) / 2;
+    commit((current) => current.map((item) => {
+      if (!ids.includes(item.id)) return item;
+      const ox = item.x + item.width / 2, oy = item.y + item.height / 2;
+      return { ...item, x: clamp(cx - (oy - cy) - item.width / 2, 0, paperWidth - item.width),
+        y: clamp(cy + (ox - cx) - item.height / 2, 0, paperHeight - item.height), rotation: (item.rotation + 90) % 360 };
+    }));
   };
-
   const alignSelected = () => {
     if (!selected) return;
-    updateSelected({
-      x: (paperWidth - selected.width) / 2,
-      y: (paperHeight - selected.height) / 2,
-    });
+    const ids = selectedIds.length ? selectedIds : [selected.id], chosen = objectsRef.current.filter((item) => ids.includes(item.id));
+    const minX = Math.min(...chosen.map((item) => item.x)), minY = Math.min(...chosen.map((item) => item.y));
+    const maxX = Math.max(...chosen.map((item) => item.x + item.width)), maxY = Math.max(...chosen.map((item) => item.y + item.height));
+    const dx = paperWidth / 2 - (minX + maxX) / 2, dy = paperHeight / 2 - (minY + maxY) / 2;
+    commit((current) => current.map((item) => ids.includes(item.id)
+      ? { ...item, x: clamp(item.x + dx, 0, paperWidth - item.width), y: clamp(item.y + dy, 0, paperHeight - item.height) } : item));
   };
 
   const printSheet = useCallback(async () => {
@@ -509,65 +601,106 @@ export default function QuickPrintPage() {
     const next = current.map((item, i) => ({ ...item, zIndex: i + 1 }));
     commit(next);
   };
+  const bringToFront = () => {
+    const ids = selectedIds.length ? selectedIds : selectedId ? [selectedId] : [];
+    if (!ids.length) return;
+    const all = [...objectsRef.current].sort((a, b) => a.zIndex - b.zIndex);
+    const moving = all.filter((item) => ids.includes(item.id)), rest = all.filter((item) => !ids.includes(item.id));
+    commit([...rest, ...moving].map((item, index) => ({ ...item, zIndex: index + 1 })));
+  };
+  const sendToBack = () => {
+    const ids = selectedIds.length ? selectedIds : selectedId ? [selectedId] : [];
+    if (!ids.length) return;
+    const all = [...objectsRef.current].sort((a, b) => a.zIndex - b.zIndex);
+    const moving = all.filter((item) => ids.includes(item.id)), rest = all.filter((item) => !ids.includes(item.id));
+    commit([...moving, ...rest].map((item, index) => ({ ...item, zIndex: index + 1 })));
+  };
+  const runContextAction = (action: string) => {
+    const target = contextMenu?.objectId ? objectsRef.current.find((item) => item.id === contextMenu.objectId) : null;
+    setContextMenu(null);
+    switch (action) {
+      case "select-all": setSelectedIds(objectsRef.current.map((item) => item.id)); setSelectedId(objectsRef.current[objectsRef.current.length - 1]?.id ?? null); break;
+      case "copy": copySelection(); break;
+      case "cut": copySelection(); deleteSelected(); break;
+      case "paste": pasteSelection(); break;
+      case "add-square": addFrame("square"); break;
+      case "add-circle": addFrame("circle"); break;
+      case "add-rounded": addFrame("rounded"); break;
+      case "duplicate": duplicateSelected(); break;
+      case "delete": deleteSelected(); break;
+      case "replace": if (target) { setFileTargetId(target.id); fileInputRef.current?.click(); } break;
+      case "crop": setCropMode(true); if (target?.src) updateSelected({ fit: "cover" }); break;
+      case "cover": updateSelected({ fit: "cover", cropScale: 1 }); break;
+      case "contain": updateSelected({ fit: "contain", cropScale: 1 }); break;
+      case "reset-crop": updateSelected({ cropScale: 1, cropX: 50, cropY: 50 }); break;
+      case "rotate": rotateSelected(); break;
+      case "front": bringToFront(); break;
+      case "back": sendToBack(); break;
+      default: break;
+    }
+  };
+  useEffect(() => {
+    if (!contextMenu) return;
+    const dismiss = (event: PointerEvent) => {
+      if ((event.target as HTMLElement | null)?.closest("[data-context-menu]")) return;
+      setContextMenu(null);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [contextMenu]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
-      const modifier = event.ctrlKey || event.metaKey;
-      if (modifier && event.key.toLowerCase() === "z") {
-        event.preventDefault();
-        if (event.shiftKey) redo(); else undo();
+      if (target && (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable)) return;
+      const modifier = event.ctrlKey || event.metaKey, key = event.key.toLowerCase();
+      if (event.key === "Escape") {
+        if (contextMenu) setContextMenu(null);
+        else { setSelectedId(null); setSelectedIds([]); setCropMode(false); }
         return;
       }
-      if (modifier && event.key.toLowerCase() === "y") {
-        event.preventDefault();
-        redo();
-        return;
-      }
-      if (modifier && event.key.toLowerCase() === "d" && selected) {
-        event.preventDefault();
-        duplicateSelected();
-        return;
-      }
-      if ((event.key === "Delete" || event.key === "Backspace") && selected) {
-        event.preventDefault();
-        deleteSelected();
-        return;
-      }
-      if (!selected || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      if (modifier && key === "a") { event.preventDefault(); setSelectedIds(objectsRef.current.map((item) => item.id)); setSelectedId(objectsRef.current[objectsRef.current.length - 1]?.id ?? null); return; }
+      if (modifier && key === "c" && selectedCount) { event.preventDefault(); copySelection(); return; }
+      if (modifier && key === "x" && selectedCount) { event.preventDefault(); copySelection(); deleteSelected(); return; }
+      if (modifier && key === "v" && clipboardRef.current.length) { event.preventDefault(); pasteSelection(); return; }
+      if (modifier && key === "z") { event.preventDefault(); if (event.shiftKey) redo(); else undo(); return; }
+      if (modifier && key === "y") { event.preventDefault(); redo(); return; }
+      if (modifier && key === "d" && selectedCount) { event.preventDefault(); duplicateSelected(); return; }
+      if ((event.key === "Delete" || event.key === "Backspace") && selectedCount) { event.preventDefault(); deleteSelected(); return; }
+      if (!selectedCount || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
       event.preventDefault();
       const step = event.shiftKey ? 10 : event.altKey || precise ? 0.1 : 1;
-      const patch: Partial<CanvasObject> = {};
-      if (event.key === "ArrowLeft") patch.x = clamp(selected.x - step, 0, paperWidth - selected.width);
-      if (event.key === "ArrowRight") patch.x = clamp(selected.x + step, 0, paperWidth - selected.width);
-      if (event.key === "ArrowUp") patch.y = clamp(selected.y - step, 0, paperHeight - selected.height);
-      if (event.key === "ArrowDown") patch.y = clamp(selected.y + step, 0, paperHeight - selected.height);
-      updateSelected(patch);
+      const ids = selectedIds.length ? selectedIds : selectedId ? [selectedId] : [];
+      const chosen = objectsRef.current.filter((item) => ids.includes(item.id));
+      if (!chosen.length) return;
+      const minX = Math.min(...chosen.map((item) => item.x)), minY = Math.min(...chosen.map((item) => item.y));
+      const maxX = Math.max(...chosen.map((item) => item.x + item.width)), maxY = Math.max(...chosen.map((item) => item.y + item.height));
+      const dx = event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0;
+      const dy = event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0;
+      const moveX = clamp(dx, -minX, paperWidth - maxX), moveY = clamp(dy, -minY, paperHeight - maxY);
+      commit((current) => current.map((item) => ids.includes(item.id) ? { ...item, x: item.x + moveX, y: item.y + moveY } : item));
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [deleteSelected, duplicateSelected, paperHeight, paperWidth, precise, redo, selected, undo]);
+  }, [commit, contextMenu, copySelection, deleteSelected, duplicateSelected, pasteSelection, paperHeight, paperWidth, precise, redo, selectedCount, selectedId, selectedIds, undo]);
 
   const handleDrop = (event: ReactDragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    setDragOver(false);
+    setDragOver(false); setDropTargetId(null);
     const files = Array.from(event.dataTransfer.files ?? []);
     if (!files.length) return;
-    const target = (event.target as HTMLElement).closest("[data-object-id]") as HTMLElement | null;
-    const targetId = target?.dataset.objectId;
+    const element = (event.target as HTMLElement).closest("[data-object-id]") as HTMLElement | null;
+    const frame = getFrameAtClientPoint(event.clientX, event.clientY);
+    const targetId = frame?.id ?? element?.dataset.objectId;
     const rect = artboardRef.current?.getBoundingClientRect();
-    const point = rect ? {
-      x: (event.clientX - rect.left) / previewScale,
-      y: (event.clientY - rect.top) / previewScale,
-    } : undefined;
+    const point = rect ? { x: (event.clientX - rect.left) / previewScale, y: (event.clientY - rect.top) / previewScale } : undefined;
     loadFiles(files, targetId, point);
   };
 
   const handleClear = () => {
     if (!objectsRef.current.length || !window.confirm(t("confirmClear"))) return;
     commit([]);
-    setSelectedId(null);
+    setSelectedId(null); setSelectedIds([]); setCropMode(false); setDropTargetId(null);
   };
 
   const objectCount = objects.length;
@@ -603,12 +736,23 @@ export default function QuickPrintPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3 no-print">
+          <div className="flex flex-wrap items-center gap-3 mb-3 no-print">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="label mr-1">{t("quickLayouts")}</span>
               {[2, 3, 4, 6].map((count) => (
                 <button key={count} className="btn btn-secondary !py-1.5 !px-2.5 text-xs" onClick={() => addLayout(count)}>
                   {t(count === 2 ? "twoUp" : count === 3 ? "threeUp" : count === 4 ? "fourUp" : "sixUp")}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="label mr-1">{t("layoutShape")}</span>
+              {(["square", "rounded", "circle", "oval"] as FrameShape[]).map((shape) => (
+                <button key={shape} type="button" aria-pressed={layoutShape === shape} title={t(shape)} onClick={() => setLayoutShape(shape)}
+                  className={"relative h-8 min-w-8 px-2 rounded-lg border flex items-center justify-center gap-1 text-[11px] transition-snappy " + (layoutShape === shape ? "border-[color:var(--brand)] bg-[rgba(156,28,38,.08)] text-[color:var(--brand)]" : "border-[color:var(--line)] hover:bg-[color:var(--canvas)]")}>
+                  <span className={"w-3.5 h-3.5 border-2 border-current inline-block " + (shape === "circle" || shape === "oval" ? "rounded-full" : shape === "rounded" ? "rounded-md" : "")} />
+                  {layoutShape === shape && <Icon name="check" size="2xs" />}
+                  <span className="sr-only">{t(shape)}</span>
                 </button>
               ))}
             </div>
@@ -622,9 +766,22 @@ export default function QuickPrintPage() {
             ref={previewRef}
             className={"relative min-h-[420px] md:min-h-[560px] rounded-xl flex items-center justify-center overflow-auto p-3 md:p-6 transition-snappy " + (dragOver ? "ring-2 ring-[color:var(--brand)]" : "")}
             style={{ background: "color-mix(in srgb, var(--canvas) 88%, var(--ink))" }}
-            onDragOver={(event) => { event.preventDefault(); setDragOver(true); }}
-            onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragOver(false); }}
+            onDragOver={(event) => {
+              event.preventDefault(); setDragOver(true);
+              const frame = getFrameAtClientPoint(event.clientX, event.clientY);
+              setDropTargetId(frame?.id ?? null);
+            }}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) { setDragOver(false); setDropTargetId(null); }
+            }}
             onDrop={handleDrop}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              const element = (event.target as HTMLElement).closest("[data-object-id]") as HTMLElement | null;
+              const objectId = element?.dataset.objectId ?? null;
+              if (objectId) { setSelectedId(objectId); setSelectedIds([objectId]); }
+              setContextMenu({ x: event.clientX, y: event.clientY, objectId });
+            }}
           >
             <div
               ref={artboardRef}
@@ -637,7 +794,9 @@ export default function QuickPrintPage() {
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
-              onPointerDown={(event) => { if ((event.target as HTMLElement).id === "print-area") setSelectedId(null); }}
+              onPointerDown={(event) => {
+                if ((event.target as HTMLElement).id === "print-area") { setSelectedId(null); setSelectedIds([]); setCropMode(false); }
+              }}
             >
               <div
                 id="print-area"
@@ -678,7 +837,8 @@ export default function QuickPrintPage() {
 
               {objects.map((item) => {
                 const shape = SHAPE_STYLE[item.shape];
-                const active = item.id === selectedId;
+                const active = selectedIds.includes(item.id) || item.id === selectedId;
+                const isDropTarget = item.id === dropTargetId;
                 return (
                   <div
                     key={item.id}
@@ -691,15 +851,14 @@ export default function QuickPrintPage() {
                       transform: "rotate(" + item.rotation + "deg)",
                       transformOrigin: "center center", zIndex: item.zIndex,
                       cursor: "move", touchAction: "none",
-                      outline: active ? "2px solid #9C1C26" : "none",
-                      outlineOffset: active ? "2px" : "0",
+                      outline: isDropTarget ? "2px solid #1677d2" : active ? "2px solid #9C1C26" : "none",
+                      outlineOffset: isDropTarget || active ? "2px" : "0",
                     }}
                     title={item.name}
-                    onClick={() => setSelectedId(item.id)}
                   >
                     <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: shape.borderRadius, clipPath: shape.clipPath }}>
                       {item.src ? (
-                        <img src={item.src} alt={item.name} draggable={false} className="w-full h-full pointer-events-none" style={{ objectFit: item.fit, display: "block" }} />
+                        <img src={item.src} alt={item.name} draggable={false} className="w-full h-full pointer-events-none" style={{ objectFit: item.fit, objectPosition: item.cropX + "% " + item.cropY + "%", transform: "scale(" + item.cropScale + ")", transformOrigin: "center center", display: "block" }} />
                       ) : (
                         <div className="canvas-frame-placeholder w-full h-full flex flex-col items-center justify-center text-center p-2" style={{ background: "transparent", border: "1.5px dashed #aeb4bb", color: "#666" }}>
                           <Icon name="image" size="lg" />
@@ -710,19 +869,19 @@ export default function QuickPrintPage() {
                     {active && (
                       <>
                         <div className="absolute inset-0 pointer-events-none no-print" style={{ border: "1px solid #9C1C26", borderRadius: shape.borderRadius }} />
-                        <button
+                        {selectedCount <= 1 && <button
                           type="button"
                           className="absolute -top-2 -left-2 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] no-print"
                           style={{ background: "#9C1C26" }}
                           onPointerDown={(event) => event.stopPropagation()}
                           onClick={(event) => { event.stopPropagation(); deleteSelected(); }}
                           aria-label={t("delete")}
-                        ><Icon name="xmark" size="2xs" /></button>
-                        <div
+                        ><Icon name="xmark" size="2xs" /></button>}
+                        {selectedCount <= 1 && <div
                           className="absolute -bottom-2 -right-2 w-4 h-4 rounded-sm border-2 border-white no-print"
                           style={{ background: "#9C1C26", cursor: "nwse-resize", touchAction: "none" }}
                           onPointerDown={(event) => startDrag(event, item, "resize")}
-                        />
+                        />}
                       </>
                     )}
                   </div>
@@ -731,6 +890,40 @@ export default function QuickPrintPage() {
               </div>
             </div>
           </div>
+
+          {contextMenu && (
+            <div data-context-menu className="fixed z-[10000] min-w-[190px] max-w-[230px] rounded-xl border p-1.5 shadow-xl no-print"
+              style={{ left: Math.max(8, Math.min(contextMenu.x, window.innerWidth - 238)), top: Math.max(8, Math.min(contextMenu.y, window.innerHeight - (contextObject ? 460 : 240))), background: "var(--surface)", borderColor: "var(--line)" }}
+              onContextMenu={(event) => event.preventDefault()} onPointerDown={(event) => event.stopPropagation()}>
+              {contextObject ? (
+                <>
+                  <div className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted truncate">{contextObject.name}</div>
+                  <ContextAction label={t("copy")} icon="copy" onClick={() => runContextAction("copy")} />
+                  <ContextAction label={t("cut")} icon="scissors" onClick={() => runContextAction("cut")} />
+                  <ContextAction label={t("duplicate")} icon="copy" onClick={() => runContextAction("duplicate")} />
+                  {contextObject.src && <ContextAction label={t("cropMode")} icon="crop" onClick={() => runContextAction("crop")} />}
+                  {contextObject.src && <ContextAction label={t("cover")} icon="expand" onClick={() => runContextAction("cover")} />}
+                  {contextObject.src && <ContextAction label={t("contain")} icon="compress" onClick={() => runContextAction("contain")} />}
+                  {(contextObject.src || contextObject.kind === "frame") && <ContextAction label={t("replaceImage")} icon="image" onClick={() => runContextAction("replace")} />}
+                  {contextObject.src && <ContextAction label={t("resetCrop")} icon="rotate" onClick={() => runContextAction("reset-crop")} />}
+                  <ContextAction label={t("rotateLeft")} icon="rotate" onClick={() => runContextAction("rotate")} />
+                  <ContextAction label={t("bringToFront")} icon="chevron-up" onClick={() => runContextAction("front")} />
+                  <ContextAction label={t("sendToBack")} icon="chevron-down" onClick={() => runContextAction("back")} />
+                  <div className="my-1 border-t" style={{ borderColor: "var(--line)" }} />
+                  <ContextAction label={t("delete")} icon="trash" danger onClick={() => runContextAction("delete")} />
+                </>
+              ) : (
+                <>
+                  {objects.length > 0 && <ContextAction label={t("selectAll")} icon="object-group" onClick={() => runContextAction("select-all")} />}
+                  {clipboardRef.current.length > 0 && <ContextAction label={t("paste")} icon="paste" onClick={() => runContextAction("paste")} />}
+                  <div className="my-1 border-t" style={{ borderColor: "var(--line)" }} />
+                  <ContextAction label={t("addSquareFrame")} icon="frame" onClick={() => runContextAction("add-square")} />
+                  <ContextAction label={t("addCircleFrame")} icon="frame" onClick={() => runContextAction("add-circle")} />
+                  <ContextAction label={t("addRoundedFrame")} icon="frame" onClick={() => runContextAction("add-rounded")} />
+                </>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center justify-between gap-2 mt-3 text-xs text-muted no-print">
             <span>{objectCount} {t("objectCount")} · {paperWidth} × {paperHeight} mm</span>
@@ -803,7 +996,7 @@ export default function QuickPrintPage() {
           <section className="card p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="label">{t("selectedObject")}</div>
-              {selected && <span className="text-[11px] text-muted truncate max-w-[130px]">{selected.name}</span>}
+              {selected && <span className="text-[11px] text-muted truncate max-w-[130px]">{selectedCount > 1 ? selectedCount + " " + t("selectedCount") : selected.name}</span>}
             </div>
             {!selected ? (
               <p className="text-sm text-muted">{t("noSelection")}</p>
@@ -839,6 +1032,27 @@ export default function QuickPrintPage() {
                       ))}
                     </div>
                     <button className="btn btn-secondary w-full mt-2" onClick={() => { setFileTargetId(selected.id); fileInputRef.current?.click(); }}><Icon name="image" />{t("replaceImage")}</button>
+                    <div className="grid grid-cols-2 gap-1.5 mt-2">
+                      <button className={"btn btn-secondary !py-1.5 text-xs " + (cropMode ? "!border-[color:var(--brand)] !text-[color:var(--brand)]" : "")} onClick={() => { setCropMode((value) => !value); updateSelected({ fit: "cover" }); }}>
+                        <Icon name="crop" />{cropMode ? t("finishCrop") : t("cropMode")}
+                      </button>
+                      <button className="btn btn-secondary !py-1.5 text-xs" onClick={() => updateSelected({ cropScale: 1, cropX: 50, cropY: 50 })}>
+                        <Icon name="rotate" />{t("resetCrop")}
+                      </button>
+                    </div>
+                    <label className="block mt-2 text-xs text-muted">
+                      <span className="flex justify-between mb-1"><span>{t("cropZoom")}</span><span className="num">{(selected.cropScale || 1).toFixed(2)}×</span></span>
+                      <input type="range" min="1" max="3" step="0.05" value={selected.cropScale || 1} onChange={(event) => updateSelected({ cropScale: Number(event.target.value), fit: "cover" })} className="w-full" />
+                    </label>
+                    <label className="block mt-2 text-xs text-muted">
+                      <span className="flex justify-between mb-1"><span>{t("cropHorizontal")}</span><span className="num">{Math.round(selected.cropX)}%</span></span>
+                      <input type="range" min="0" max="100" step="1" value={selected.cropX} onChange={(event) => updateSelected({ cropX: Number(event.target.value) })} className="w-full" />
+                    </label>
+                    <label className="block mt-2 text-xs text-muted">
+                      <span className="flex justify-between mb-1"><span>{t("cropVertical")}</span><span className="num">{Math.round(selected.cropY)}%</span></span>
+                      <input type="range" min="0" max="100" step="1" value={selected.cropY} onChange={(event) => updateSelected({ cropY: Number(event.target.value) })} className="w-full" />
+                    </label>
+                    {cropMode && <p className="text-[11px] text-muted mt-1">{t("cropDragHint")}</p>}
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2">
@@ -861,7 +1075,7 @@ export default function QuickPrintPage() {
             {sortedObjects.length === 0 ? <p className="text-sm text-muted py-2">{t("noObjects")}</p> : (
               <div className="space-y-1 max-h-56 overflow-auto">
                 {sortedObjects.map((item) => (
-                  <button key={item.id} onClick={() => setSelectedId(item.id)} className={"w-full text-left flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs " + (selectedId === item.id ? "bg-[rgba(156,28,38,.09)] text-[color:var(--brand)]" : "hover:bg-[color:var(--canvas)]")}>
+                  <button key={item.id} onClick={() => { setSelectedId(item.id); setSelectedIds([item.id]); }} className={"w-full text-left flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs " + (selectedIds.includes(item.id) || selectedId === item.id ? "bg-[rgba(156,28,38,.09)] text-[color:var(--brand)]" : "hover:bg-[color:var(--canvas)]")}>
                     <Icon name={item.src ? "image" : "frame"} />
                     <span className="flex-1 truncate">{item.name || (item.src ? t("image") : t("frame"))}</span>
                     <span className="text-[10px] opacity-65">{Math.round(item.width)}×{Math.round(item.height)}</span>
@@ -893,6 +1107,19 @@ export default function QuickPrintPage() {
 
       
     </div>
+  );
+}
+
+function ContextAction({ label, icon, onClick, danger = false }: {
+  label: string;
+  icon: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button type="button" className={"w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-snappy " + (danger ? "text-red-600 hover:bg-red-50" : "hover:bg-[color:var(--canvas)]")} onClick={onClick}>
+      <Icon name={icon} /><span>{label}</span>
+    </button>
   );
 }
 
