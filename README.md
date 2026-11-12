@@ -37,6 +37,7 @@ center for drivers and PDF tools.
   mode, undo/duplicate/clear, custom items.
 - **Resource Center** — drivers, PDF tools, image tools, and utilities. Add your own.
 - **Support** — optional donation via QRIS. No pressure.
+- **Donate** — `/donate` displays the supplied QRIS SVG directly, without the app navigation or other page UI.
 - **About** — philosophy, tech stack, license, contribution info.
 - **Languages** — English and Bahasa Indonesia, with a saved language preference.
 
