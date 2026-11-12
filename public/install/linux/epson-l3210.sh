@@ -6,7 +6,6 @@ set -Eeuo pipefail
 # It does not delete caches, change existing printer queues, or add a printer
 # automatically. The final printer queue is created from the CUPS interface.
 
-APP_NAME="Rekaluna Epson L3210 setup"
 DRIVER_INSTALLED=0
 DISTRO_ID="unknown"
 DISTRO_LIKE=""
@@ -18,22 +17,29 @@ die()  { printf '\n\033[1;31m[error]\033[0m %s\n' "$*" >&2; exit 1; }
 as_root() {
   if [[ "${EUID}" -eq 0 ]]; then
     "$@"
-  else
+  elif command -v sudo >/dev/null 2>&1; then
     sudo "$@"
+  elif command -v doas >/dev/null 2>&1; then
+    doas "$@"
+  else
+    die "sudo or doas is required to install system packages."
   fi
 }
 
 [[ "$(uname -s)" == "Linux" ]] || die "This installer only supports Linux."
 [[ -r /etc/os-release ]] || die "Cannot identify this Linux distribution (/etc/os-release is missing)."
 
-# Load distro identifiers without executing the file as shell code.
+# Read the standard, shell-compatible distribution metadata.
 . /etc/os-release
 DISTRO_ID="${ID:-unknown}"
 DISTRO_LIKE="${ID_LIKE:-}"
 
 if [[ "${EUID}" -ne 0 ]]; then
-  command -v sudo >/dev/null 2>&1 || die "sudo is required. Install sudo, then run this script again."
-  sudo -v || die "Could not obtain sudo permission."
+  if command -v sudo >/dev/null 2>&1; then
+    sudo -v || die "Could not obtain sudo permission."
+  elif ! command -v doas >/dev/null 2>&1; then
+    die "sudo or doas is required to install system packages."
+  fi
 fi
 
 log "Preparing CUPS and printer support for ${PRETTY_NAME:-$DISTRO_ID}."
@@ -121,11 +127,18 @@ esac
 
 log "Enabling the CUPS printing service."
 if command -v systemctl >/dev/null 2>&1; then
-  as_root systemctl enable --now cups.service || as_root systemctl enable --now cupsd.service
-  as_root systemctl restart cups.service 2>/dev/null || as_root systemctl restart cupsd.service
+  if as_root systemctl enable --now cups.service; then
+    as_root systemctl restart cups.service || warn "CUPS was enabled, but could not be restarted automatically."
+  elif as_root systemctl enable --now cupsd.service; then
+    as_root systemctl restart cupsd.service || warn "CUPS was enabled, but could not be restarted automatically."
+  else
+    warn "Could not enable CUPS automatically. Start cups.service with systemctl."
+  fi
 elif command -v rc-service >/dev/null 2>&1 && command -v rc-update >/dev/null 2>&1; then
   as_root rc-update add cupsd default || true
-  as_root rc-service cupsd restart || as_root rc-service cupsd start
+  if ! as_root rc-service cupsd restart; then
+    as_root rc-service cupsd start || warn "Could not start CUPS automatically."
+  fi
 else
   warn "CUPS packages are installed, but this init system was not recognized. Start the CUPS service using your distribution's service manager."
 fi
@@ -141,7 +154,7 @@ else
 fi
 
 printf '\n'
-if command -v lpstat >/dev/null 2>&1 && lpstat -r 2>/dev/null | grep -qi 'scheduler is running'; then
+if command -v lpstat >/dev/null 2>&1 && lpstat -r >/dev/null 2>&1; then
   printf '  CUPS status: running\n'
 else
   printf '  CUPS status: check the service manager\n'
