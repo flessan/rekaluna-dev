@@ -61,6 +61,7 @@ import {
   faGripVertical,
   faShareNodes,
   faScissors,
+  faTerminal,
 } from "@fortawesome/free-solid-svg-icons";
 import { faBookmark, faClock } from "@fortawesome/free-regular-svg-icons";
 
@@ -135,6 +136,7 @@ const iconMap: Record<string, IconDefinition> = {
   grip: faGripVertical,
   share: faShareNodes,
   resource: faFolderOpen,
+  terminal: faTerminal,
   support: faHeart,
   about: faCircleInfo,
   money: faCoins,
