@@ -196,9 +196,9 @@ export default function QuickPrintPage() {
       let slotX = margin + column * (cellWidth + gap);
       const slotY = margin + row * (cellHeight + gap);
       if (count === 3 && index === 2 && columns === 2) slotX = margin + (innerWidth - cellWidth) / 2;
-      const circular = layoutShape === "circle";
-      const width = circular ? Math.min(cellWidth, cellHeight) : cellWidth;
-      const height = circular ? width : cellHeight;
+      const keepsSquareRatio = layoutShape === "square" || layoutShape === "circle";
+      const width = keepsSquareRatio ? Math.min(cellWidth, cellHeight) : cellWidth;
+      const height = keepsSquareRatio ? width : cellHeight;
       return {
         id: uid(), kind: "frame" as const, src: null, name: t("frame") + " " + (index + 1),
         naturalWidth: 0, naturalHeight: 0,
@@ -430,7 +430,7 @@ export default function QuickPrintPage() {
     if (!ids.length) return;
     commit((current) => current.map((item) => {
       if (!ids.includes(item.id)) return item;
-      if (shape !== "circle") return { ...item, shape };
+      if (shape !== "square" && shape !== "circle") return { ...item, shape };
       const side = Math.min(item.width, item.height);
       const centerX = item.x + item.width / 2;
       const centerY = item.y + item.height / 2;
