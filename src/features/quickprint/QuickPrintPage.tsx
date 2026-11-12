@@ -990,6 +990,12 @@ export default function QuickPrintPage() {
               onContextMenu={(event) => event.preventDefault()}
               onPointerDown={(event) => event.stopPropagation()}
               onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setContextMenu(null);
+                  return;
+                }
                 const items = Array.from(contextMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
                 if (!items.length) return;
                 const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
