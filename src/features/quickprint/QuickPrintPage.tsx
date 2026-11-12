@@ -1272,7 +1272,28 @@ export default function QuickPrintPage() {
           </div>
         </section>
 
-        <aside className="space-y-4 no-print">
+        <aside className="space-y-4 no-print lg:col-span-2 xl:col-span-1">
+          <div className="card p-1.5 grid grid-cols-3 gap-1" role="tablist" aria-label={t("inspector")}>
+            {([
+              { id: "page", label: t("paper"), icon: "file-pdf" },
+              { id: "position", label: t("position"), icon: "expand" },
+              { id: "layers", label: t("layers"), icon: "object-group" },
+            ] as const).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={inspectorTab === tab.id}
+                onClick={() => setInspectorTab(tab.id)}
+                className={"rounded-lg px-2 py-2 flex items-center justify-center gap-1.5 text-xs font-medium transition-snappy " + (inspectorTab === tab.id ? "bg-[rgba(156,28,38,.09)] text-[color:var(--brand)]" : "text-muted hover:bg-[color:var(--canvas)]")}
+              >
+                <Icon name={tab.icon} />
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {inspectorTab === "page" && (
           <section className="card p-4 space-y-3">
             <div className="label">{t("paper")}</div>
             <div className="grid grid-cols-4 gap-1.5">
@@ -1329,7 +1350,9 @@ export default function QuickPrintPage() {
               <p className="text-[11px] text-muted leading-relaxed">{t("colorPrintNote")}</p>
             </div>
           </section>
+          )}
 
+          {inspectorTab === "position" && (
           <section className="card p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="label">{t("selectedObject")}</div>
@@ -1399,7 +1422,9 @@ export default function QuickPrintPage() {
               </>
             )}
           </section>
+          )}
 
+          {inspectorTab === "layers" && (
           <section className="card p-4 space-y-2">
             <div className="flex items-center justify-between">
               <div className="label">{t("layers")} · {objectCount}</div>
@@ -1412,7 +1437,23 @@ export default function QuickPrintPage() {
             {sortedObjects.length === 0 ? <p className="text-sm text-muted py-2">{t("noObjects")}</p> : (
               <div className="space-y-1 max-h-56 overflow-auto">
                 {sortedObjects.map((item) => (
-                  <button key={item.id} onClick={() => { setSelectedId(item.id); setSelectedIds([item.id]); }} className={"w-full text-left flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs " + (selectedIds.includes(item.id) || selectedId === item.id ? "bg-[rgba(156,28,38,.09)] text-[color:var(--brand)]" : "hover:bg-[color:var(--canvas)]")}>
+                  <button
+                    key={item.id}
+                    draggable
+                    onClick={() => { setSelectedId(item.id); setSelectedIds([item.id]); setInspectorTab("position"); }}
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData("text/plain", item.id);
+                      event.dataTransfer.effectAllowed = "move";
+                    }}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      reorderLayers(event.dataTransfer.getData("text/plain"), item.id);
+                    }}
+                    className={"w-full text-left flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs cursor-grab active:cursor-grabbing " + (selectedIds.includes(item.id) || selectedId === item.id ? "bg-[rgba(156,28,38,.09)] text-[color:var(--brand)]" : "hover:bg-[color:var(--canvas)]")}
+                    title={t("reorderLayers")}
+                  >
+                    <Icon name="grip" className="text-muted" />
                     <Icon name={item.src ? "image" : "frame"} />
                     <span className="flex-1 truncate">{item.name || (item.src ? t("image") : t("frame"))}</span>
                     <span className="text-[10px] opacity-65">{Math.round(item.width)}×{Math.round(item.height)}</span>
@@ -1421,6 +1462,7 @@ export default function QuickPrintPage() {
               </div>
             )}
           </section>
+          )}
 
           <div className="card p-3 text-[11px] text-muted leading-relaxed text-center">
             <Icon name="shield" className="mr-1" />{t("localPrivacy")}
