@@ -68,6 +68,7 @@ export interface ResourceLink {
 }
 
 const KEY = "rekaluna:v1";
+const RESOURCE_CATALOG_VERSION_KEY = "rekaluna:resource-catalog:v2";
 
 const DEFAULT_QUICK_MONEY = [250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
 
@@ -146,8 +147,26 @@ function read(): AppData {
   if (typeof window === "undefined") return structuredClone(DEFAULT_DATA);
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return structuredClone(DEFAULT_DATA);
+    if (!raw) {
+      localStorage.setItem(RESOURCE_CATALOG_VERSION_KEY, "2");
+      return structuredClone(DEFAULT_DATA);
+    }
     const parsed = JSON.parse(raw) as Partial<AppData>;
+    const savedResources = parsed.resources;
+    let resources = savedResources ?? DEFAULT_RESOURCES;
+    if (localStorage.getItem(RESOURCE_CATALOG_VERSION_KEY) !== "2") {
+      if (savedResources?.length) {
+        resources = [
+          ...savedResources,
+          ...DEFAULT_RESOURCES.filter(
+            (item) =>
+              CURATED_PRINT_RESOURCE_IDS.has(item.id) &&
+              !savedResources.some((saved) => saved.id === item.id),
+          ),
+        ];
+      }
+      localStorage.setItem(RESOURCE_CATALOG_VERSION_KEY, "2");
+    }
     // Merge defaults to be forwards-compatible
     return {
       settings: {
@@ -158,17 +177,7 @@ function read(): AppData {
       services: parsed.services && parsed.services.length ? parsed.services : DEFAULT_SERVICES,
       favorites: parsed.favorites ?? DEFAULT_FAVORITES,
       recents: parsed.recents ?? [],
-      // Add newly curated resources without replacing the user's saved links.
-      resources: parsed.resources?.length
-        ? [
-            ...parsed.resources,
-            ...DEFAULT_RESOURCES.filter(
-              (item) =>
-                CURATED_PRINT_RESOURCE_IDS.has(item.id) &&
-                !parsed.resources?.some((saved) => saved.id === item.id),
-            ),
-          ]
-        : parsed.resources ?? DEFAULT_RESOURCES,
+      resources,
     };
   } catch {
     return structuredClone(DEFAULT_DATA);
