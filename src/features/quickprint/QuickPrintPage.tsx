@@ -877,39 +877,138 @@ export default function QuickPrintPage() {
         </div>
       </div>
 
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
-        <section className="card p-3 md:p-4 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-3 no-print">
-            <button className="btn btn-primary" onClick={() => { setFileTargetId(undefined); fileInputRef.current?.click(); }}><Icon name="plus" /> {t("addImages")}</button>
+      <div className="grid grid-cols-1 lg:grid-cols-[190px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)_320px] gap-4 items-start">
+        <aside className="card p-3 space-y-3 no-print">
+          <div className="grid grid-cols-3 xl:grid-cols-1 gap-1" role="tablist" aria-label={t("toolbox")}>
+            {([
+              { id: "media", label: t("addImages"), icon: "image" },
+              { id: "layouts", label: t("quickLayouts"), icon: "object-group" },
+              { id: "frames", label: t("frame"), icon: "frame" },
+            ] as const).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={toolPanelTab === tab.id}
+                onClick={() => setToolPanelTab(tab.id)}
+                className={"flex xl:w-full flex-col xl:flex-row items-center justify-center xl:justify-start gap-1.5 xl:gap-2 rounded-lg px-2 py-2.5 text-[11px] xl:text-xs font-medium transition-snappy " + (toolPanelTab === tab.id ? "bg-[rgba(156,28,38,.09)] text-[color:var(--brand)]" : "text-muted hover:bg-[color:var(--canvas)]")}
+              >
+                <Icon name={tab.icon} />
+                <span>{tab.label}</span>
+              </button>
+            ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 mb-3 no-print">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="label mr-1">{t("quickLayouts")}</span>
-              {[2, 3, 4, 6].map((count) => (
-                <button key={count} className="btn btn-secondary !py-1.5 !px-2.5 text-xs" onClick={() => addLayout(count)}>
-                  {t(count === 2 ? "twoUp" : count === 3 ? "threeUp" : count === 4 ? "fourUp" : "sixUp")}
+          <div className="border-t pt-3 space-y-3" style={{ borderColor: "var(--line)" }}>
+            {toolPanelTab === "media" && (
+              <div className="space-y-3">
+                <div>
+                  <div className="font-semibold text-sm">{t("addImages")}</div>
+                  <p className="text-xs text-muted mt-1">{t("emptyHint")}</p>
+                </div>
+                <button className="btn btn-primary w-full" onClick={() => { setFileTargetId(undefined); fileInputRef.current?.click(); }}>
+                  <Icon name="plus" /> {t("addImages")}
                 </button>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="label mr-1">{t("layoutShape")}</span>
-              {(["square", "rounded", "circle", "oval"] as FrameShape[]).map((shape) => (
-                <button key={shape} type="button" aria-pressed={layoutShape === shape} title={t(shape)} onClick={() => setLayoutShape(shape)}
-                  className={"relative h-8 px-2 rounded-lg border flex items-center justify-center gap-1.5 text-[11px] transition-snappy " + (layoutShape === shape ? "border-[color:var(--brand)] bg-[rgba(156,28,38,.08)] text-[color:var(--brand)]" : "border-[color:var(--line)] hover:bg-[color:var(--canvas)]")}>
-                  <span className={"border-2 border-current inline-block " + (shape === "oval" ? "w-4 h-2.5 rounded-full" : shape === "circle" ? "w-3.5 h-3.5 rounded-full" : shape === "rounded" ? "w-3.5 h-3.5 rounded-md" : "w-3.5 h-3.5")} />
-                  <span>{t(shape)}</span>
-                  {layoutShape === shape && <Icon name="check" size="2xs" />}
+                <div className="rounded-lg p-3 text-xs text-muted leading-relaxed" style={{ background: "var(--canvas)" }}>
+                  <div className="font-semibold text-[color:var(--ink)] mb-1">{t("keyboardFirst")}</div>
+                  <span className="kbd">Ctrl V</span> {t("pasteIntoPrint")}
+                </div>
+                {selected?.kind === "frame" && !selected.src && (
+                  <button className="btn btn-secondary w-full" onClick={() => { setFileTargetId(selected.id); fileInputRef.current?.click(); }}>
+                    <Icon name="image" /> {t("dropToFill")}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {toolPanelTab === "layouts" && (
+              <div className="space-y-3">
+                <div>
+                  <div className="font-semibold text-sm">{t("quickLayouts")}</div>
+                  <p className="text-xs text-muted mt-1">{t("addLayout")}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[2, 3, 4, 6].map((count) => (
+                    <button key={count} className="btn btn-secondary !py-3 flex-col" onClick={() => addLayout(count)}>
+                      <span className="text-base font-semibold num">{count}</span>
+                      <span className="text-[10px]">{t(count === 2 ? "twoUp" : count === 3 ? "threeUp" : count === 4 ? "fourUp" : "sixUp")}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted">{t("layoutShape")}: {t(layoutShape)}</p>
+              </div>
+            )}
+
+            {toolPanelTab === "frames" && (
+              <div className="space-y-3">
+                <div>
+                  <div className="font-semibold text-sm">{t("frame")}</div>
+                  <p className="text-xs text-muted mt-1">{t("frameHint")}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["square", "rounded", "circle", "oval"] as FrameShape[]).map((shape) => (
+                    <button
+                      key={shape}
+                      type="button"
+                      aria-pressed={layoutShape === shape}
+                      onClick={() => setLayoutShape(shape)}
+                      className={"rounded-lg border px-2 py-3 flex flex-col items-center justify-center gap-2 text-xs transition-snappy " + (layoutShape === shape ? "border-[color:var(--brand)] bg-[rgba(156,28,38,.08)] text-[color:var(--brand)]" : "border-[color:var(--line)] hover:bg-[color:var(--canvas)]")}
+                    >
+                      <span className={"border-2 border-current inline-block " + (shape === "oval" ? "w-8 h-5 rounded-full" : shape === "circle" ? "w-6 h-6 rounded-full" : shape === "rounded" ? "w-6 h-6 rounded-lg" : "w-6 h-6")} />
+                      <span>{t(shape)}</span>
+                    </button>
+                  ))}
+                </div>
+                <button className="btn btn-primary w-full" onClick={() => addFrame()}>
+                  <Icon name="plus" /> {t("addFrame")}
                 </button>
-              ))}
-              <button type="button" className="btn btn-secondary !py-1.5 !px-2.5 text-xs" onClick={() => addFrame()}>
-                <Icon name="frame" /> {t("addFrame")}
-              </button>
+              </div>
+            )}
+          </div>
+
+          <label className="flex items-center gap-2 border-t pt-3 text-xs text-muted cursor-pointer" style={{ borderColor: "var(--line)" }}>
+            <input type="checkbox" checked={snapEnabled} onChange={(event) => setSnapEnabled(event.target.checked)} />
+            <span>{t("snapping")}</span>
+          </label>
+        </aside>
+
+        <section className="card p-3 md:p-4 min-w-0">
+          <div className="rounded-xl border p-2 mb-3 no-print space-y-2" style={{ borderColor: "var(--line)", background: "var(--surface)" }}>
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <div className="min-w-0">
+                <div className="font-semibold text-xs truncate">
+                  {selectedCount > 1 ? selectedCount + " " + t("selectedCount") : selected?.name ?? t("noSelection")}
+                </div>
+                <div className="text-[10px] text-muted">{selectedCount > 0 ? t("position") : t("moveHint")}</div>
+              </div>
+              {selectedCount > 0 && (
+                <button className="btn btn-ghost !px-2 !py-1.5 text-xs" onClick={() => { setSelectedId(null); setSelectedIds([]); setCropMode(false); }}>
+                  {t("close")}
+                </button>
+              )}
             </div>
-            <label className="inline-flex items-center gap-2 text-xs text-muted cursor-pointer">
-              <input type="checkbox" checked={snapEnabled} onChange={(event) => setSnapEnabled(event.target.checked)} />
-              <span>{t("snapping")}</span>
-            </label>
+            {selectedCount > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                {selectedCount === 1 && selected?.src && (
+                  <>
+                    <button className={"btn btn-secondary !px-2.5 !py-1.5 text-xs shrink-0 " + (cropMode ? "!border-[color:var(--brand)] !text-[color:var(--brand)]" : "")} onClick={() => { setCropMode((value) => !value); updateSelected({ fit: "cover" }); }}>
+                      <Icon name="crop" /> {cropMode ? t("finishCrop") : t("cropMode")}
+                    </button>
+                    <button className="btn btn-secondary !px-2.5 !py-1.5 text-xs shrink-0" onClick={() => { setFileTargetId(selected.id); fileInputRef.current?.click(); }}>
+                      <Icon name="image" /> {t("replaceImage")}
+                    </button>
+                    <button className={"btn btn-secondary !px-2.5 !py-1.5 text-xs shrink-0 " + (selected.fit === "cover" ? "!border-[color:var(--brand)] !text-[color:var(--brand)]" : "")} onClick={() => updateSelected({ fit: "cover" })}>{t("cover")}</button>
+                    <button className={"btn btn-secondary !px-2.5 !py-1.5 text-xs shrink-0 " + (selected.fit === "contain" ? "!border-[color:var(--brand)] !text-[color:var(--brand)]" : "")} onClick={() => updateSelected({ fit: "contain" })}>{t("contain")}</button>
+                  </>
+                )}
+                <button className="btn btn-secondary !px-2.5 !py-1.5 text-xs shrink-0" onClick={duplicateSelected}><Icon name="copy" /> {t("duplicate")}</button>
+                <button className="btn btn-secondary !px-2.5 !py-1.5 text-xs shrink-0" onClick={rotateSelected}><Icon name="rotate" /> 90°</button>
+                <button className="btn btn-secondary !px-2.5 !py-1.5 text-xs shrink-0" onClick={alignSelected}><Icon name="object-group" /> {t("centerPage")}</button>
+                <button className="btn btn-secondary !px-2.5 !py-1.5 text-xs shrink-0" onClick={bringToFront}><Icon name="chevron-up" /> {t("bringToFront")}</button>
+                <button className="btn btn-secondary !px-2.5 !py-1.5 text-xs shrink-0" onClick={sendToBack}><Icon name="chevron-down" /> {t("sendToBack")}</button>
+                <button className="btn btn-danger !px-2.5 !py-1.5 text-xs shrink-0" onClick={deleteSelected}><Icon name="trash" /> {t("delete")}</button>
+              </div>
+            )}
           </div>
 
           <div
