@@ -46,6 +46,16 @@ interface DragState {
   initialObjects: CanvasObject[];
 }
 
+interface MarqueeState {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  additive: boolean;
+}
+
+type ToolPanelTab = "media" | "layouts" | "frames";
+type InspectorTab = "page" | "position" | "layers";
+
 const PAPER_DIMS: Record<PaperSize, { w: number; h: number }> = {
   A4: { w: 210, h: 297 },
   F4: { w: 215, h: 330 },
@@ -90,6 +100,9 @@ export default function QuickPrintPage() {
   const redoStack = useRef<CanvasObject[][]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [toolPanelTab, setToolPanelTab] = useState<ToolPanelTab>("media");
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("page");
+  const [selectionRect, setSelectionRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [layoutShape, setLayoutShape] = useState<FrameShape>("square");
   const [cropMode, setCropMode] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; objectId: string | null } | null>(null);
@@ -108,6 +121,7 @@ export default function QuickPrintPage() {
   const previewRef = useRef<HTMLDivElement>(null);
   const artboardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
+  const marqueeRef = useRef<MarqueeState | null>(null);
 
   const paper = PAPER_DIMS[prefs.paper as PaperSize] ?? PAPER_DIMS.A4;
   const paperWidth = prefs.orientation === "portrait" ? paper.w : paper.h;
@@ -186,6 +200,7 @@ export default function QuickPrintPage() {
     commit([...objectsRef.current, item]);
     setSelectedId(item.id);
     setSelectedIds([item.id]);
+    setInspectorTab("position");
   };
 
   const addLayout = (count: number) => {
@@ -212,6 +227,7 @@ export default function QuickPrintPage() {
     commit([...objectsRef.current, ...next]);
     setSelectedId(next[0]?.id ?? null);
     setSelectedIds(next.map((item) => item.id));
+    setInspectorTab("position");
   };
 
   const loadFiles = useCallback((files: File[], targetId?: string, dropPoint?: { x: number; y: number }) => {
@@ -236,6 +252,7 @@ export default function QuickPrintPage() {
             commit(filled);
             setSelectedId(frameTarget.id);
             setSelectedIds([frameTarget.id]);
+            setInspectorTab("position");
           } else {
             const size = clamp(Math.min(innerWidth * 0.52, innerHeight * 0.36), 28, 90);
             const aspect = image.naturalWidth > 0 && image.naturalHeight > 0
@@ -257,6 +274,7 @@ export default function QuickPrintPage() {
             commit([...objectsRef.current, item]);
             setSelectedId(item.id);
             setSelectedIds([item.id]);
+            setInspectorTab("position");
           }
 
           storage.addRecent({
@@ -342,6 +360,7 @@ export default function QuickPrintPage() {
         : (selectedIds.includes(item.id) ? selectedIds.filter((id) => id !== item.id) : [...selectedIds, item.id]);
       setSelectedIds(nextIds);
       setSelectedId(nextIds.includes(item.id) ? item.id : nextIds[nextIds.length - 1] ?? null);
+      setInspectorTab("position");
       setContextMenu(null);
       return;
     }
@@ -349,6 +368,7 @@ export default function QuickPrintPage() {
     event.currentTarget.setPointerCapture(event.pointerId);
     const ids = selectedIds.includes(item.id) ? selectedIds : [item.id];
     setSelectedId(item.id);
+    setInspectorTab("position");
     if (!selectedIds.includes(item.id)) setSelectedIds([item.id]);
     dragRef.current = {
       id: item.id, pointerId: event.pointerId,
@@ -360,6 +380,20 @@ export default function QuickPrintPage() {
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const marquee = marqueeRef.current;
+    if (marquee && marquee.pointerId === event.pointerId) {
+      const rect = artboardRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const x = (event.clientX - rect.left) / previewScale;
+      const y = (event.clientY - rect.top) / previewScale;
+      setSelectionRect({
+        x: Math.min(marquee.startX, x),
+        y: Math.min(marquee.startY, y),
+        width: Math.abs(x - marquee.startX),
+        height: Math.abs(y - marquee.startY),
+      });
+      return;
+    }
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const dx = (event.clientX - drag.clientX) / previewScale, dy = (event.clientY - drag.clientY) / previewScale;
@@ -402,6 +436,33 @@ export default function QuickPrintPage() {
   };
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const marquee = marqueeRef.current;
+    if (marquee && marquee.pointerId === event.pointerId) {
+      const rect = artboardRef.current?.getBoundingClientRect();
+      if (rect) {
+        const endX = (event.clientX - rect.left) / previewScale;
+        const endY = (event.clientY - rect.top) / previewScale;
+        const x = Math.min(marquee.startX, endX);
+        const y = Math.min(marquee.startY, endY);
+        const width = Math.abs(endX - marquee.startX);
+        const height = Math.abs(endY - marquee.startY);
+        const hits = objectsRef.current.filter((item) =>
+          item.x < x + width &&
+          item.x + item.width > x &&
+          item.y < y + height &&
+          item.y + item.height > y
+        ).map((item) => item.id);
+        const nextIds = marquee.additive
+          ? Array.from(new Set([...selectedIds, ...hits]))
+          : hits;
+        setSelectedIds(nextIds);
+        setSelectedId(nextIds[nextIds.length - 1] ?? null);
+        if (nextIds.length) setInspectorTab("position");
+      }
+      marqueeRef.current = null;
+      setSelectionRect(null);
+      return;
+    }
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     let finalObjects = objectsRef.current;
@@ -634,6 +695,17 @@ export default function QuickPrintPage() {
     window.addEventListener("rekaluna:print-sheet", onPrintRequest);
     return () => window.removeEventListener("rekaluna:print-sheet", onPrintRequest);
   }, [printSheet]);
+
+  const reorderLayers = (sourceId: string, targetId: string) => {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const ordered = [...objectsRef.current].sort((a, b) => a.zIndex - b.zIndex);
+    const from = ordered.findIndex((item) => item.id === sourceId);
+    const to = ordered.findIndex((item) => item.id === targetId);
+    if (from < 0 || to < 0) return;
+    const [moving] = ordered.splice(from, 1);
+    ordered.splice(to, 0, moving);
+    commit(ordered.map((item, index) => ({ ...item, zIndex: index + 1 })));
+  };
 
   const changeLayer = (direction: -1 | 1) => {
     if (!selected) return;
@@ -878,7 +950,27 @@ export default function QuickPrintPage() {
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
               onPointerDown={(event) => {
-                if ((event.target as HTMLElement).id === "print-area") { setSelectedId(null); setSelectedIds([]); setCropMode(false); }
+                if ((event.target as HTMLElement).id === "print-area") {
+                  event.preventDefault();
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  const rect = artboardRef.current?.getBoundingClientRect();
+                  if (!rect) return;
+                  const x = (event.clientX - rect.left) / previewScale;
+                  const y = (event.clientY - rect.top) / previewScale;
+                  marqueeRef.current = {
+                    pointerId: event.pointerId,
+                    startX: x,
+                    startY: y,
+                    additive: event.shiftKey,
+                  };
+                  setSelectionRect({ x, y, width: 0, height: 0 });
+                  setContextMenu(null);
+                  setCropMode(false);
+                  if (!event.shiftKey) {
+                    setSelectedId(null);
+                    setSelectedIds([]);
+                  }
+                }
               }}
             >
               <div
@@ -970,6 +1062,20 @@ export default function QuickPrintPage() {
                   </div>
                 );
               })}
+              {selectionRect && (
+                <div
+                  className="absolute pointer-events-none no-print"
+                  style={{
+                    left: selectionRect.x + "mm",
+                    top: selectionRect.y + "mm",
+                    width: selectionRect.width + "mm",
+                    height: selectionRect.height + "mm",
+                    border: "1px solid #1677d2",
+                    background: "rgba(22,119,210,.12)",
+                    zIndex: 9999,
+                  }}
+                />
+              )}
               </div>
             </div>
           </div>
