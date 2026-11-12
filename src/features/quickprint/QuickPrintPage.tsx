@@ -294,7 +294,7 @@ export default function QuickPrintPage() {
       };
       reader.readAsDataURL(file);
     });
-  }, [commit, innerHeight, innerWidth, margin, paperHeight, paperWidth, t]);
+  }, [commit, defaultObjectRotation, innerHeight, innerWidth, margin, paperHeight, paperWidth, t]);
 
   const handlePaste = useCallback((event: ClipboardEvent) => {
     const active = document.activeElement;
