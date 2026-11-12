@@ -128,11 +128,12 @@ export default function QuickPrintPage() {
   const marqueeRef = useRef<MarqueeState | null>(null);
 
   const paper = PAPER_DIMS[prefs.paper as PaperSize] ?? PAPER_DIMS.A4;
-  // Print media remains portrait for consistent printer output. The orientation
-  // control is a content-rotation mode, not a physical page-orientation switch.
-  const paperWidth = paper.w;
-  const paperHeight = paper.h;
-  const defaultObjectRotation = prefs.orientation === "landscape" ? 90 : 0;
+  // The editing canvas follows the selected orientation. Landscape is rotated
+  // onto a portrait physical page only when the print document is generated.
+  const paperWidth = prefs.orientation === "portrait" ? paper.w : paper.h;
+  const paperHeight = prefs.orientation === "portrait" ? paper.h : paper.w;
+  const printPaperWidth = paper.w;
+  const printPaperHeight = paper.h;
   const margin = MARGINS[prefs.margin as Margin] ?? MARGINS.normal;
   const paperBackground = /^#[\da-f]{6}$/i.test(prefs.background ?? "") ? prefs.background : "#FFFFFF";
   const innerWidth = Math.max(10, paperWidth - margin * 2);
@@ -201,7 +202,7 @@ export default function QuickPrintPage() {
       x: clamp((paperWidth - width) / 2, margin, paperWidth - margin - width),
       y: clamp((paperHeight - height) / 2, margin, paperHeight - margin - height),
       width, height,
-      rotation: defaultObjectRotation, shape, fit: "cover", cropScale: 1, cropX: 50, cropY: 50,
+      rotation: 0, shape, fit: "cover", cropScale: 1, cropX: 50, cropY: 50,
       zIndex: objectsRef.current.length + 1,
     };
     commit([...objectsRef.current, item]);
@@ -227,7 +228,7 @@ export default function QuickPrintPage() {
         id: uid(), kind: "frame" as const, src: null, name: t("frame") + " " + (index + 1),
         naturalWidth: 0, naturalHeight: 0,
         x: slotX + (cellWidth - width) / 2, y: slotY + (cellHeight - height) / 2,
-        width, height, rotation: defaultObjectRotation, shape: layoutShape, fit: "cover" as ImageFit,
+        width, height, rotation: 0, shape: layoutShape, fit: "cover" as ImageFit,
         cropScale: 1, cropX: 50, cropY: 50, zIndex: objectsRef.current.length + index + 1,
       };
     });
@@ -275,7 +276,7 @@ export default function QuickPrintPage() {
               naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
               x: clamp(pointX + index * 3, 0, paperWidth - width),
               y: clamp(pointY + index * 3, 0, paperHeight - height),
-              width, height, rotation: defaultObjectRotation, shape: "square",
+              width, height, rotation: 0, shape: "square",
               fit: "contain", cropScale: 1, cropX: 50, cropY: 50, zIndex: current.length + 1,
             };
             commit([...objectsRef.current, item]);
@@ -613,13 +614,6 @@ export default function QuickPrintPage() {
 
   const changeOrientationMode = (orientation: Orientation) => {
     if (orientation === prefs.orientation) return;
-    const rotationDelta = orientation === "landscape" ? 90 : -90;
-    if (objectsRef.current.length) {
-      commit((current) => current.map((item) => ({
-        ...item,
-        rotation: ((item.rotation + rotationDelta) % 360 + 360) % 360,
-      })));
-    }
     setPrefs({ orientation });
   };
 
@@ -643,13 +637,16 @@ export default function QuickPrintPage() {
 
     const printRoot = source.cloneNode(true) as HTMLElement;
     printRoot.querySelectorAll(".no-print").forEach((element) => element.remove());
-    printRoot.style.position = "relative";
+    const landscapePrint = prefs.orientation === "landscape";
+    printRoot.style.position = landscapePrint ? "absolute" : "relative";
+    printRoot.style.left = landscapePrint ? "50%" : "0";
+    printRoot.style.top = landscapePrint ? "50%" : "0";
     printRoot.style.display = "block";
     printRoot.style.width = `${paperWidth}mm`;
     printRoot.style.height = `${paperHeight}mm`;
     printRoot.style.margin = "0";
-    printRoot.style.transform = "none";
-    printRoot.style.transformOrigin = "top left";
+    printRoot.style.transform = landscapePrint ? "translate(-50%, -50%) rotate(90deg)" : "none";
+    printRoot.style.transformOrigin = "center center";
     printRoot.style.boxShadow = "none";
     printRoot.style.overflow = "hidden";
     printRoot.style.backgroundColor = paperBackground;
@@ -660,11 +657,11 @@ export default function QuickPrintPage() {
     });
 
     const printStyles = `
-      @page { size: ${paperWidth}mm ${paperHeight}mm; margin: 0; }
+      @page { size: ${printPaperWidth}mm ${printPaperHeight}mm; margin: 0; }
       * { box-sizing: border-box; }
       html, body {
-        width: ${paperWidth}mm;
-        height: ${paperHeight}mm;
+        width: ${printPaperWidth}mm;
+        height: ${printPaperHeight}mm;
         margin: 0 !important;
         padding: 0 !important;
         background: ${paperBackground} !important;
@@ -673,13 +670,16 @@ export default function QuickPrintPage() {
       }
       body { display: block; overflow: hidden; }
       #print-area {
-        position: relative !important;
+        position: ${landscapePrint ? "absolute" : "relative"} !important;
+        left: ${landscapePrint ? "50%" : "0"} !important;
+        top: ${landscapePrint ? "50%" : "0"} !important;
         display: block !important;
         width: ${paperWidth}mm !important;
         height: ${paperHeight}mm !important;
         margin: 0 !important;
         overflow: hidden !important;
-        transform: none !important;
+        transform: ${landscapePrint ? "translate(-50%, -50%) rotate(90deg)" : "none"} !important;
+        transform-origin: center center !important;
         box-shadow: none !important;
         background: ${paperBackground} !important;
         -webkit-print-color-adjust: exact !important;
@@ -712,7 +712,7 @@ export default function QuickPrintPage() {
     `;
 
     printDocument.open();
-    printDocument.write(`<!doctype html><html><head><meta charset="utf-8"><title>${t("printSheet")}</title><style>${printStyles}</style></head><body>${printRoot.outerHTML}</body></html>`);
+    printDocument.write(`<!doctype html><html><head><meta charset="utf-8"><title>${t("printSheet")}</title><style>${printStyles}</style></head><body style="position:relative;width:${printPaperWidth}mm;height:${printPaperHeight}mm;margin:0;overflow:hidden">${printRoot.outerHTML}</body></html>`);
     printDocument.close();
 
     try {
@@ -749,7 +749,7 @@ export default function QuickPrintPage() {
       window.print();
     }
     window.setTimeout(cleanup, 120000);
-  }, [paperBackground, paperHeight, paperWidth, t]);
+  }, [paperBackground, paperHeight, paperWidth, prefs.orientation, printPaperHeight, printPaperWidth, t]);
 
   useEffect(() => {
     const onPrintRequest = () => { void printSheet(); };
