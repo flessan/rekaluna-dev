@@ -376,7 +376,7 @@ export default function PriceDeskPage() {
               {cashGiven === 0 ? t("change") : change >= 0 ? t("change") : t("short")}
             </div>
             <div className="num text-2xl font-bold">
-              {cashGiven === 0 ? "—" : format.rupiah(Math.abs(change))}
+              {cashGiven === 0 ? "-" : format.rupiah(Math.abs(change))}
             </div>
           </div>
           <div className="text-[11px] text-muted text-center leading-relaxed pt-1">

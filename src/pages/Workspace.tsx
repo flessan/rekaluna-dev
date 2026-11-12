@@ -227,5 +227,5 @@ function EmptyFavs() {
   );
 }
 
-// unused in this page — keep formatter imported for tree-shake safety
+// unused in this page - keep formatter imported for tree-shake safety
 void format;

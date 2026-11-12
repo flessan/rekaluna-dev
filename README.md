@@ -24,22 +24,22 @@ It replaces the dozen tabs and utilities that operators juggle all day with one
 focused app: quick printing, a lightning-fast price desk, and a curated resource
 center for drivers and PDF tools.
 
-- Arrange multiple images on one sheet, drag them into place, snap-align, and print — no upload.
+- Arrange multiple images on one sheet, drag them into place, snap-align, and print - no upload.
 - Tap quick money buttons, tweak quantities, and answer "How much?" in seconds.
 - Pin your favorite tools and resources. Everything is stored on your device.
 - Works offline. Install it as a PWA. No account. No server. No tracking.
 
 ## Sections
 
-- **Workspace** — greeting, quick actions, favorites, recent activity.
-- **Quick Print** — multi-image sheet editor with drag-and-drop, snap guides, millimeter positioning, group selection, keyboard editing, crop/pan controls, and square/rounded/circle/oval frames. Choose one shape for both quick layouts and newly added frames, so the toolbar has one shape selector. Circle layouts and edited circle frames stay truly circular. Drag an existing image onto a frame to fill it. Right-click objects for crop, fit/fill, replace, rotate, layer order, duplicate, copy/cut, and delete actions. Includes a custom paper background palette and isolated sheet-only printing.
-- **Price Desk** — large money buttons, service chips, live totals, cash/change
+- **Workspace** - greeting, quick actions, favorites, recent activity.
+- **Quick Print** - multi-image sheet editor with drag-and-drop, snap guides, millimeter positioning, group selection, keyboard editing, crop/pan controls, and square/rounded/circle/oval frames. Choose one shape for both quick layouts and newly added frames, so the toolbar has one shape selector. Circle layouts and edited circle frames stay truly circular. Drag an existing image onto a frame to fill it. Right-click objects for crop, fit/fill, replace, rotate, layer order, duplicate, copy/cut, and delete actions. Includes a custom paper background palette and isolated sheet-only printing.
+- **Price Desk** - large money buttons, service chips, live totals, cash/change
   mode, undo/duplicate/clear, custom items.
-- **Resource Center** — drivers, PDF tools, image tools, and utilities. Add your own.
-- **Support** — optional donation via QRIS. No pressure.
-- **Donate** — `/donate` displays the supplied QRIS SVG directly, without the app navigation or other page UI.
-- **About** — philosophy, tech stack, license, contribution info.
-- **Languages** — English and Bahasa Indonesia, with a saved language preference.
+- **Resource Center** - drivers, PDF tools, image tools, and utilities. Add your own.
+- **Support** - optional donation via QRIS. No pressure.
+- **Donate** - `/donate` displays the supplied QRIS SVG directly, without the app navigation or other page UI.
+- **About** - philosophy, tech stack, license, contribution info.
+- **Languages** - English and Bahasa Indonesia, with a saved language preference.
 
 ## Keyboard workflow (desktop)
 
@@ -93,7 +93,7 @@ npm run lint     # oxlint
 - [React Router](https://reactrouter.com/)
 - [Font Awesome](https://fontawesome.com/)
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) for offline/PWA support
-- Plain `localStorage` — no backend, no accounts, no telemetry
+- Plain `localStorage` - no backend, no accounts, no telemetry
 
 ### Project layout
 
@@ -126,7 +126,7 @@ to back up or move between machines.
 ## Contributing
 
 Issues, translations, ideas, and pull requests are welcome. This is built for
-real print operators — feedback from shop floors shapes the roadmap.
+real print operators - feedback from shop floors shapes the roadmap.
 
 1. Fork the repo
 2. Create a branch (`git checkout -b feature/your-idea`)
