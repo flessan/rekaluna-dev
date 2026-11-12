@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "../../lib/icons";
 import { useStorage } from "../../lib/storage-hooks";
 import { storage, uid } from "../../lib/storage";
@@ -127,8 +128,11 @@ export default function QuickPrintPage() {
   const marqueeRef = useRef<MarqueeState | null>(null);
 
   const paper = PAPER_DIMS[prefs.paper as PaperSize] ?? PAPER_DIMS.A4;
-  const paperWidth = prefs.orientation === "portrait" ? paper.w : paper.h;
-  const paperHeight = prefs.orientation === "portrait" ? paper.h : paper.w;
+  // Print media remains portrait for consistent printer output. The orientation
+  // control is a content-rotation mode, not a physical page-orientation switch.
+  const paperWidth = paper.w;
+  const paperHeight = paper.h;
+  const defaultObjectRotation = prefs.orientation === "landscape" ? 90 : 0;
   const margin = MARGINS[prefs.margin as Margin] ?? MARGINS.normal;
   const paperBackground = /^#[\da-f]{6}$/i.test(prefs.background ?? "") ? prefs.background : "#FFFFFF";
   const innerWidth = Math.max(10, paperWidth - margin * 2);
@@ -197,7 +201,7 @@ export default function QuickPrintPage() {
       x: clamp((paperWidth - width) / 2, margin, paperWidth - margin - width),
       y: clamp((paperHeight - height) / 2, margin, paperHeight - margin - height),
       width, height,
-      rotation: 0, shape, fit: "cover", cropScale: 1, cropX: 50, cropY: 50,
+      rotation: defaultObjectRotation, shape, fit: "cover", cropScale: 1, cropX: 50, cropY: 50,
       zIndex: objectsRef.current.length + 1,
     };
     commit([...objectsRef.current, item]);
@@ -223,7 +227,7 @@ export default function QuickPrintPage() {
         id: uid(), kind: "frame" as const, src: null, name: t("frame") + " " + (index + 1),
         naturalWidth: 0, naturalHeight: 0,
         x: slotX + (cellWidth - width) / 2, y: slotY + (cellHeight - height) / 2,
-        width, height, rotation: 0, shape: layoutShape, fit: "cover" as ImageFit,
+        width, height, rotation: defaultObjectRotation, shape: layoutShape, fit: "cover" as ImageFit,
         cropScale: 1, cropX: 50, cropY: 50, zIndex: objectsRef.current.length + index + 1,
       };
     });
@@ -271,7 +275,7 @@ export default function QuickPrintPage() {
               naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
               x: clamp(pointX + index * 3, 0, paperWidth - width),
               y: clamp(pointY + index * 3, 0, paperHeight - height),
-              width, height, rotation: 0, shape: "square",
+              width, height, rotation: defaultObjectRotation, shape: "square",
               fit: "contain", cropScale: 1, cropX: 50, cropY: 50, zIndex: current.length + 1,
             };
             commit([...objectsRef.current, item]);
@@ -605,6 +609,18 @@ export default function QuickPrintPage() {
     const dx = paperWidth / 2 - (minX + maxX) / 2, dy = paperHeight / 2 - (minY + maxY) / 2;
     commit((current) => current.map((item) => ids.includes(item.id)
       ? { ...item, x: clamp(item.x + dx, 0, paperWidth - item.width), y: clamp(item.y + dy, 0, paperHeight - item.height) } : item));
+  };
+
+  const changeOrientationMode = (orientation: Orientation) => {
+    if (orientation === prefs.orientation) return;
+    const rotationDelta = orientation === "landscape" ? 90 : -90;
+    if (objectsRef.current.length) {
+      commit((current) => current.map((item) => ({
+        ...item,
+        rotation: ((item.rotation + rotationDelta) % 360 + 360) % 360,
+      })));
+    }
+    setPrefs({ orientation });
   };
 
   const printSheet = useCallback(async () => {
@@ -1252,7 +1268,7 @@ export default function QuickPrintPage() {
             </div>
           </div>
 
-          {contextMenu && (
+          {contextMenu && createPortal((
             <div
               ref={contextMenuRef}
               data-context-menu
@@ -1333,7 +1349,7 @@ export default function QuickPrintPage() {
                 </>
               )}
             </div>
-          )}
+          ), document.body)}
 
           <div className="flex flex-wrap items-center justify-between gap-3 mt-3 text-xs text-muted no-print">
             <div className="flex items-center gap-2">
@@ -1387,11 +1403,12 @@ export default function QuickPrintPage() {
             <div className="label">{t("orientation")}</div>
             <div className="grid grid-cols-2 gap-1.5">
               {(["portrait", "landscape"] as Orientation[]).map((orientation) => (
-                <button key={orientation} onClick={() => setPrefs({ orientation })} className={"rounded-lg py-2 text-xs font-semibold border capitalize transition-snappy " + (prefs.orientation === orientation ? "bg-[color:var(--brand)] text-white border-[color:var(--brand)]" : "border-[color:var(--line)] hover:bg-[color:var(--canvas)]")}>
+                <button key={orientation} onClick={() => changeOrientationMode(orientation)} className={"rounded-lg py-2 text-xs font-semibold border capitalize transition-snappy " + (prefs.orientation === orientation ? "bg-[color:var(--brand)] text-white border-[color:var(--brand)]" : "border-[color:var(--line)] hover:bg-[color:var(--canvas)]")}>
                   <Icon name={orientation === "portrait" ? "mobile" : "image"} className="mr-1" />{t(orientation)}
                 </button>
               ))}
             </div>
+            <p className="text-[11px] text-muted leading-relaxed">{t("orientationPrintHint")}</p>
             <div className="label">{t("margin")}</div>
             <div className="grid grid-cols-4 gap-1.5">
               {(["none", "small", "normal", "large"] as Margin[]).map((value) => (
