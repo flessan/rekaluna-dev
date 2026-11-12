@@ -102,6 +102,21 @@ const DEFAULT_RESOURCES: ResourceLink[] = [
   { id: "res-qrconvert", name: "QR Code Generator", url: "https://www.qr-code-generator.com/", category: "Utility" },
 ];
 
+const CURATED_PRINT_RESOURCE_IDS = new Set([
+  "res-epson-l3210-linux",
+  "res-epson-linux-download-center",
+  "res-brother-linux-drivers",
+  "res-openprinting-printer-db",
+  "res-gutenprint",
+  "res-cups-local",
+  "res-openprinting-cups",
+  "res-paper-sizes",
+  "res-pdfarranger",
+  "res-pdfsam-basic",
+  "res-qpdf",
+  "res-ghostscript",
+]);
+
 const DEFAULT_FAVORITES: Favorite[] = [
   { id: "/print", kind: "tool", label: "Quick Print", icon: "print", target: "/print" },
   { id: "/price", kind: "tool", label: "Price Desk", icon: "calculator", target: "/price" },
@@ -144,12 +159,16 @@ function read(): AppData {
       favorites: parsed.favorites ?? DEFAULT_FAVORITES,
       recents: parsed.recents ?? [],
       // Add newly curated resources without replacing the user's saved links.
-      resources: parsed.resources
+      resources: parsed.resources?.length
         ? [
-            ...DEFAULT_RESOURCES.filter((item) => !parsed.resources?.some((saved) => saved.id === item.id)),
             ...parsed.resources,
+            ...DEFAULT_RESOURCES.filter(
+              (item) =>
+                CURATED_PRINT_RESOURCE_IDS.has(item.id) &&
+                !parsed.resources?.some((saved) => saved.id === item.id),
+            ),
           ]
-        : DEFAULT_RESOURCES,
+        : parsed.resources ?? DEFAULT_RESOURCES,
     };
   } catch {
     return structuredClone(DEFAULT_DATA);
