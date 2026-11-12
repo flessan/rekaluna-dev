@@ -32,7 +32,7 @@ center for drivers and PDF tools.
 ## Sections
 
 - **Workspace** - greeting, quick actions, favorites, recent activity.
-- **Quick Print** - multi-image sheet editor with drag-and-drop, snap guides, millimeter positioning, group selection, keyboard editing, crop/pan controls, and square/rounded/circle/oval frames. Choose one shape for both quick layouts and newly added frames, so the toolbar has one shape selector. Circle layouts and edited circle frames stay truly circular. Drag an existing image onto a frame to fill it. Right-click objects for crop, fit/fill, replace, rotate, layer order, duplicate, copy/cut, and delete actions. Includes a custom paper background palette and isolated sheet-only printing.
+- **Quick Print** - multi-image sheet editor with a tool rail, contextual selection toolbar, Page / Position / Layers inspector, drag-to-select group selection, eight-point resize handles, zoom controls, snap guides, millimeter positioning, crop/pan controls, and square/rounded/circle/oval frames. Choose one shape for both quick layouts and newly added frames, so the editor has one shape selector. Circle layouts and edited circle frames stay truly circular. Drag an existing image onto a frame to fill it. Reorder layers by dragging them, or right-click objects for crop, fit/fill, replace, rotate, layer order, duplicate, copy/cut, and delete actions. Includes a custom paper background palette and isolated sheet-only printing.
 - **Price Desk** - large money buttons, service chips, live totals, cash/change
   mode, undo/duplicate/clear, custom items.
 - **Resource Center** - drivers, PDF tools, image tools, and utilities. Add your own.
@@ -55,7 +55,10 @@ center for drivers and PDF tools.
 | `Ctrl + A`   | Select all canvas objects   |
 | `Ctrl + C` / `Ctrl + X` / `Ctrl + V` | Copy / cut / paste objects |
 | `Ctrl + D`   | Duplicate selected object(s) |
-| `Shift + click` / `Ctrl + click` | Add / toggle multi-selection |
+| `Ctrl + [` / `Ctrl + ]` | Send backward / bring forward |
+| `Ctrl + 0`   | Fit canvas view |
+| `Ctrl + +` / `Ctrl + -` | Zoom in / out |
+| `Shift + click` / drag on empty page | Add / box-select multiple objects |
 | `Right click` | Open the object context menu |
 | `Ctrl + Z` / `Ctrl + Shift + Z` | Undo / redo canvas edits |
 | `↑ ↓` `↵`    | Navigate lists / run command |
