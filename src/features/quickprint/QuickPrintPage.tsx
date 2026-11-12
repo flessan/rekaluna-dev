@@ -33,7 +33,7 @@ interface CanvasObject {
 interface DragState {
   id: string;
   pointerId: number;
-  mode: "move" | "resize" | "crop";
+  mode: "move" | "resize" | "crop" | "rotate";
   clientX: number;
   clientY: number;
   x: number;
@@ -42,6 +42,8 @@ interface DragState {
   height: number;
   cropX: number;
   cropY: number;
+  rotation: number;
+  startAngle: number;
   selectedIds: string[];
   initialObjects: CanvasObject[];
   resizeHandle?: "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
@@ -376,12 +378,17 @@ export default function QuickPrintPage() {
     setSelectedId(item.id);
     setInspectorTab("position");
     if (!selectedIds.includes(item.id)) setSelectedIds([item.id]);
+    const boardRect = artboardRef.current?.getBoundingClientRect();
+    const centerX = boardRect ? boardRect.left + (item.x + item.width / 2) * previewScale : event.clientX;
+    const centerY = boardRect ? boardRect.top + (item.y + item.height / 2) * previewScale : event.clientY;
     dragRef.current = {
       id: item.id, pointerId: event.pointerId,
-      mode: mode === "resize" ? "resize" : cropMode && item.src ? "crop" : "move",
+      mode: mode === "resize" ? "resize" : mode === "rotate" ? "rotate" : cropMode && item.src ? "crop" : "move",
       clientX: event.clientX, clientY: event.clientY,
       x: item.x, y: item.y, width: item.width, height: item.height,
-      cropX: item.cropX, cropY: item.cropY, selectedIds: ids, initialObjects: objectsRef.current,
+      cropX: item.cropX, cropY: item.cropY, rotation: item.rotation,
+      startAngle: Math.atan2(event.clientY - centerY, event.clientX - centerX),
+      selectedIds: ids, initialObjects: objectsRef.current,
       resizeHandle,
     };
   };
@@ -421,6 +428,19 @@ export default function QuickPrintPage() {
       }
       replaceWithoutHistory(current.map((object) => object.id === drag.id ? { ...object, x, y, width, height } : object));
       setGuides({ x: null, y: null }); return;
+    }
+    if (drag.mode === "rotate") {
+      const rect = artboardRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const centerX = rect.left + (drag.x + drag.width / 2) * previewScale;
+      const centerY = rect.top + (drag.y + drag.height / 2) * previewScale;
+      const currentAngle = Math.atan2(event.clientY - centerY, event.clientX - centerX);
+      const delta = (currentAngle - drag.startAngle) * (180 / Math.PI);
+      const rotation = ((drag.rotation + delta) % 360 + 360) % 360;
+      replaceWithoutHistory(current.map((object) => object.id === drag.id ? { ...object, rotation } : object));
+      setGuides({ x: null, y: null });
+      setDropTargetId(null);
+      return;
     }
     if (drag.mode === "crop") {
       const cropX = clamp(drag.cropX - dx / Math.max(8, drag.width) * 100, 0, 100);
@@ -1174,6 +1194,21 @@ export default function QuickPrintPage() {
                     {active && (
                       <>
                         <div className="absolute inset-0 pointer-events-none no-print" style={{ border: "1px solid #9C1C26", borderRadius: shape.borderRadius }} />
+                        {selectedCount <= 1 && (
+                          <>
+                            <div className="absolute left-1/2 -top-5 -translate-x-1/2 w-px h-4 no-print" style={{ background: "var(--brand)" }} />
+                            <button
+                              type="button"
+                              className="absolute left-1/2 -top-9 -translate-x-1/2 w-5 h-5 rounded-full border-2 border-white bg-[color:var(--brand)] text-white shadow-sm flex items-center justify-center no-print"
+                              style={{ cursor: "grab", touchAction: "none" }}
+                              onPointerDown={(event) => startDrag(event, item, "rotate")}
+                              aria-label={t("rotateObject")}
+                              title={t("rotateObject")}
+                            >
+                              <Icon name="rotate" size="2xs" />
+                            </button>
+                          </>
+                        )}
                         {selectedCount <= 1 && ([
                           { id: "nw", style: { left: "-5px", top: "-5px", cursor: "nwse-resize" } },
                           { id: "n", style: { left: "calc(50% - 5px)", top: "-5px", cursor: "ns-resize" } },
