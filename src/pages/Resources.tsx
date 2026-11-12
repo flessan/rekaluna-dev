@@ -16,7 +16,7 @@ chmod +x install-epson-l3210.sh
 export default function ResourcesPage() {
   const { data, update } = useStorage();
   const toast = useToast();
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("All");
   const [editing, setEditing] = useState<ResourceLink | null>(null);
