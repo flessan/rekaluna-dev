@@ -539,7 +539,7 @@ function formatCalculatorNumber(value: number): string {
 }
 
 function evaluateCalculatorExpression(expression: string): number {
-  const source = expression.replace(/[×]/g, "*").replace(/[÷]/g, "/").replace(/,/g, ".");
+  const source = expression.trim().replace(/[×]/g, "*").replace(/[÷]/g, "/").replace(/,/g, ".");
   if (!source.trim() || source.length > 120) throw new Error("Invalid expression");
 
   type Token =
