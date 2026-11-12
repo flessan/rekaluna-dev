@@ -1410,12 +1410,6 @@ export default function QuickPrintPage() {
               <p className="text-sm text-muted">{t("noSelection")}</p>
             ) : (
               <>
-                <div className="flex flex-wrap gap-1.5">
-                  <button className="btn btn-secondary !px-2.5 !py-1.5 text-xs" onClick={duplicateSelected}><Icon name="copy" />{t("duplicate")}</button>
-                  <button className="btn btn-secondary !px-2.5 !py-1.5 text-xs" onClick={rotateSelected}><Icon name="rotate" />90°</button>
-                  <button className="btn btn-secondary !px-2.5 !py-1.5 text-xs" onClick={alignSelected}>{t("centerPage")}</button>
-                  <button className="btn btn-danger !px-2.5 !py-1.5 text-xs" onClick={deleteSelected}><Icon name="trash" />{t("delete")}</button>
-                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <NumberField label={t("xPosition")} value={selected.x} step={precise ? 0.1 : 1} onChange={(value) => updateSelected({ x: clamp(value, 0, paperWidth - selected.width) })} />
                   <NumberField label={t("yPosition")} value={selected.y} step={precise ? 0.1 : 1} onChange={(value) => updateSelected({ y: clamp(value, 0, paperHeight - selected.height) })} />
