@@ -32,6 +32,37 @@ function App() {
     initTheme();
   }, []);
 
+  // Keep /donate available even when the host serves the SPA fallback instead
+  // of the static public/donate/index.html file.
+  if (loc.pathname === "/donate" || loc.pathname === "/donate/") {
+    return (
+      <main
+        style={{
+          minHeight: "100dvh",
+          display: "grid",
+          placeItems: "center",
+          margin: 0,
+          background: "#fff",
+        }}
+      >
+        <img
+          src="/qris.svg"
+          alt="QRIS donation code"
+          width={342}
+          height={345}
+          style={{
+            display: "block",
+            width: "min(100vw, 100dvh)",
+            maxWidth: "100vw",
+            maxHeight: "100dvh",
+            height: "auto",
+            objectFit: "contain",
+          }}
+        />
+      </main>
+    );
+  }
+
   // Close modal on route change
   useEffect(() => {
     setModal(null);
