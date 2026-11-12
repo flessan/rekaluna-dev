@@ -74,6 +74,28 @@ center for drivers and PDF tools.
 - On Firefox under some Linux Wayland desktop setups, dragging files from the desktop into a browser tab can be affected by browser / desktop integration. Use **Add images** to open the native file picker, or paste an image with `Ctrl + V` as a fallback.
 - For print accuracy, select the paper size that matches the printer, use 100% scale when exact millimeter dimensions matter, and enable background graphics when printing a custom paper color. Browser and printer preferences can override background-color output.
 
+### Linux printer setup: Epson L3210
+
+The Resources page includes a Linux printing installer for CUPS and the Epson ESC/P-R driver. It supports Arch-based systems (with `yay` or `paru`), Debian/Ubuntu, Fedora/RHEL, and openSUSE. On RPM-based distributions, the Epson driver package depends on the repositories enabled on that system; the script will say when the vendor driver needs to be installed manually.
+
+Run the hosted installer:
+
+```bash
+curl -fsSL https://rekaluna.pages.dev/install/linux/epson-l3210.sh | bash
+```
+
+Or download it first, inspect it, then run it:
+
+```bash
+curl -fL https://rekaluna.pages.dev/install/linux/epson-l3210.sh -o install-epson-l3210.sh
+less install-epson-l3210.sh
+chmod +x install-epson-l3210.sh
+./install-epson-l3210.sh
+```
+
+The script installs the printing stack and starts CUPS, but does not create a printer queue or alter existing queues. Open [CUPS](http://localhost:631), choose **Administration → Add Printer**, and select the connected printer. If an Epson L3210 profile is not listed, **Epson L3250 Series** can be tried as a fallback; availability depends on the installed driver build and printer connection. The installer does not install scanner software.
+
+
 ## Development
 
 Requires Node.js 20+.
