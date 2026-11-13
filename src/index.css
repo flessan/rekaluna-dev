@@ -8,6 +8,14 @@
     transition-duration: 150ms;
     transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
+
+  .interactive-card {
+    transition: transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 150ms ease, border-color 150ms ease;
+  }
+
+  .interactive-card:hover {
+    transform: translateY(-1px);
+  }
 }
 
 :root {
@@ -99,6 +107,17 @@ html.dark body {
 }
 .btn-danger:hover {
   background: rgba(180, 35, 24, 0.08);
+}
+
+.btn:disabled,
+.money-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+  filter: saturate(0.7);
+}
+
+button:not(:disabled) {
+  -webkit-tap-highlight-color: transparent;
 }
 
 html.dark .btn-danger { color: #f97066; }
@@ -212,6 +231,13 @@ hr.sep {
   border: 1px solid var(--line);
 }
 
+/* Context menus use a compact entrance without affecting editor geometry. */
+@keyframes menuEnter {
+  from { opacity: 0; transform: translateY(-3px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.menu-enter { animation: menuEnter 120ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
 /* Fade in */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(2px); }
@@ -226,3 +252,16 @@ hr.sep {
   100% { box-shadow: 0 0 0 0 rgba(156,28,38,0); }
 }
 .pulse-once { animation: softPulse .6s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .interactive-card:hover { transform: none; }
+}

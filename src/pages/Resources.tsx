@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons";
 import { useStorage } from "../lib/storage-hooks";
 import { storage, uid, type ResourceLink } from "../lib/storage";
 import { useToast } from "../lib/toast";
 import { Modal } from "../components/Modal";
 import { useI18n } from "../lib/i18n";
+import { usePageMotion, useScrollReveal } from "../lib/motion";
 
 const LINUX_SCRIPT_URL = "/install/linux/epson-l3210.sh";
 const LINUX_SCRIPT_PUBLIC_URL = "https://rekaluna.pages.dev/install/linux/epson-l3210.sh";
@@ -21,6 +22,9 @@ export default function ResourcesPage() {
   const [cat, setCat] = useState<string>("All");
   const [editing, setEditing] = useState<ResourceLink | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  usePageMotion(contentRef, "resources");
+  useScrollReveal(contentRef, "[data-scroll-reveal]");
 
   const categories = useMemo(() => {
     const set = new Set(data.resources.map((r) => r.category));
@@ -67,7 +71,7 @@ export default function ResourcesPage() {
   }, []);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5">
+    <div ref={contentRef} className="max-w-6xl mx-auto space-y-5">
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t("resourceCenter")}</h1>
@@ -129,7 +133,7 @@ export default function ResourcesPage() {
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((r) => (
-            <div key={r.id} className="card p-4 flex flex-col gap-2 hover:shadow-soft transition-snappy group">
+            <div key={r.id} className="card interactive-card p-4 flex flex-col gap-2 hover:shadow-soft transition-snappy group" data-scroll-reveal>
               <div className="flex items-start gap-3">
                 <div
                   className="w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0"
@@ -204,7 +208,7 @@ function LinuxPrintBanner({ onCopy }: { onCopy: (command: string) => void }) {
   const { t } = useI18n();
 
   return (
-    <section className="card p-4 md:p-5 space-y-4" aria-labelledby="linux-printing-title">
+    <section className="card p-4 md:p-5 space-y-4" aria-labelledby="linux-printing-title" data-scroll-reveal>
       <div className="flex flex-wrap items-start gap-3">
         <div
           className="w-11 h-11 rounded-xl flex items-center justify-center text-white shrink-0"

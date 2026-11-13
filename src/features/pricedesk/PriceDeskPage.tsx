@@ -4,6 +4,8 @@ import { format, storage, uid, type TransactionItem, type Service } from "../../
 import { useStorage } from "../../lib/storage-hooks";
 import { useToast } from "../../lib/toast";
 import { useI18n } from "../../lib/i18n";
+import { animateControlPress, useOverlayMotion, usePageMotion, useValueFeedback } from "../../lib/motion";
+import { useDialogAccessibility } from "../../lib/dialog-accessibility";
 
 export default function PriceDeskPage() {
   const { data, update } = useStorage();
@@ -16,10 +18,67 @@ export default function PriceDeskPage() {
   const [customPrice, setCustomPrice] = useState<string>("");
   const [customName, setCustomName] = useState<string>("");
   const [editServices, setEditServices] = useState(false);
+  const [calculatorExpression, setCalculatorExpression] = useState("");
+  const [calculatorEvaluated, setCalculatorEvaluated] = useState(false);
   const lastRemoved = useRef<{ items: TransactionItem[]; index: number } | null>(null);
+  const totalRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  usePageMotion(pageRef, "price-desk");
 
   const total = useMemo(() => items.reduce((s, it) => s + it.price * it.qty, 0), [items]);
   const change = cashGiven - total;
+  useValueFeedback(totalRef, total);
+  const calculatorResult = useMemo(() => {
+    if (!calculatorExpression.trim()) return { value: null as number | null, error: false };
+    try {
+      return { value: evaluateCalculatorExpression(calculatorExpression), error: false };
+    } catch {
+      return { value: null as number | null, error: true };
+    }
+  }, [calculatorExpression]);
+
+  const inputCalculator = (key: string) => {
+    if (key === "C") {
+      setCalculatorExpression("");
+      setCalculatorEvaluated(false);
+      return;
+    }
+    if (key === "⌫") {
+      setCalculatorExpression((value) => value.slice(0, -1));
+      setCalculatorEvaluated(false);
+      return;
+    }
+    if (key === "=") {
+      if (calculatorResult.value !== null) {
+        setCalculatorExpression(String(calculatorResult.value));
+        setCalculatorEvaluated(true);
+      }
+      return;
+    }
+
+    const operator = key === "×" ? "*" : key === "÷" ? "/" : key;
+    setCalculatorExpression((current) => {
+      let next = calculatorEvaluated && /^[0-9.]$/.test(operator)
+        ? ""
+        : calculatorEvaluated && !/^[0-9.]$/.test(operator) && calculatorResult.value !== null
+          ? String(calculatorResult.value)
+          : current;
+      if (operator === ".") {
+        const currentNumber = next.split(/[+\-*/()]/).pop() ?? "";
+        if (currentNumber.includes(".")) return next;
+        if (!currentNumber) next += "0";
+      }
+      return next + operator;
+    });
+    setCalculatorEvaluated(false);
+  };
+
+  const addCalculatorResult = () => {
+    if (calculatorResult.value === null || calculatorResult.value <= 0) return;
+    addItem(t("calculatorResult"), Math.round(calculatorResult.value));
+    setCalculatorExpression("");
+    setCalculatorEvaluated(false);
+  };
 
   useEffect(() => {
     storage.addRecent({ kind: "price", label: "Price Desk opened", meta: format.rupiah(total) });
@@ -132,8 +191,8 @@ export default function PriceDeskPage() {
   // Keyboard: numeric quick money via Numpad numbers mapped via Shift? Too complex. Skip.
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex items-end justify-between mb-5 gap-3 flex-wrap">
+    <div ref={pageRef} className="max-w-6xl mx-auto">
+      <div className="flex items-end justify-between mb-5 gap-3 flex-wrap motion-enter">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t("priceDesk")}</h1>
           <p className="text-sm text-muted mt-1">{t("priceSubtitle")}</p>
@@ -154,13 +213,14 @@ export default function PriceDeskPage() {
 
       <div className="grid md:grid-cols-[340px_1fr_300px] gap-4">
         {/* Services / Quick money */}
-        <section className="card p-4 space-y-4 h-fit md:sticky md:top-20 order-2 md:order-1">
+        <section className="card p-4 space-y-4 h-fit md:sticky md:top-20 order-2 md:order-1 motion-enter">
           <div>
             <div className="label mb-2">{t("services")}</div>
             <div className="grid grid-cols-2 gap-2">
               {data.services.map((s) => (
                 <div key={s.id} className="relative group">
                   <button
+                    onPointerDown={(event) => animateControlPress(event.currentTarget)}
                     onClick={() => {
                       if (editServices) return;
                       addItem(s.name, s.price, s.id);
@@ -217,6 +277,7 @@ export default function PriceDeskPage() {
               {data.settings.quickMoney.map((amt) => (
                 <button
                   key={amt}
+                  onPointerDown={(event) => animateControlPress(event.currentTarget)}
                   onClick={() => quickAdd(amt)}
                   className="money-btn num"
                 >
@@ -228,7 +289,7 @@ export default function PriceDeskPage() {
         </section>
 
         {/* Transaction */}
-        <section className="card order-1 md:order-2">
+        <section className="card order-1 md:order-2 motion-enter">
           <div className="px-4 py-3 flex items-center justify-between border-b" style={{ borderColor: "var(--line)" }}>
             <div className="font-semibold flex items-center gap-2">
               <Icon name="cash" /> {t("transaction")}
@@ -306,7 +367,7 @@ export default function PriceDeskPage() {
           <div className="px-4 py-4 border-t flex items-center justify-between" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--brand) 4%, transparent)" }}>
             <div>
               <div className="text-xs uppercase tracking-wide text-muted">{t("total")}</div>
-              <div className="num text-3xl md:text-4xl font-extrabold tracking-tight">
+              <div ref={totalRef} className="num text-3xl md:text-4xl font-extrabold tracking-tight">
                 {format.rupiah(total)}
               </div>
             </div>
@@ -319,7 +380,7 @@ export default function PriceDeskPage() {
         </section>
 
         {/* Cash check */}
-        <aside className="card p-4 space-y-3 h-fit md:sticky md:top-20 order-3">
+        <aside className="card p-4 space-y-3 h-fit md:sticky md:top-20 order-3 motion-enter">
           <div className="label">{t("cashCheck")}</div>
           <div>
             <div className="text-xs text-muted mb-1">{t("amountReceived")}</div>
@@ -382,6 +443,86 @@ export default function PriceDeskPage() {
           <div className="text-[11px] text-muted text-center leading-relaxed pt-1">
             {t("cashModeTip")}
           </div>
+          <section className="border-t pt-4 space-y-3" style={{ borderColor: "var(--line)" }} aria-label={t("calculator")}>
+            <div className="flex items-center justify-between">
+              <div className="font-semibold text-sm flex items-center gap-2">
+                <Icon name="calculator" /> {t("calculator")}
+              </div>
+              <span className="chip">+ − × ÷</span>
+            </div>
+            <div className="rounded-xl p-3 space-y-1" style={{ background: "var(--canvas)" }}>
+              <input
+                type="text"
+                inputMode="decimal"
+                aria-label={t("calculatorExpression")}
+                autoComplete="off"
+                spellCheck={false}
+                value={calculatorExpression}
+                onChange={(event) => {
+                  setCalculatorExpression(event.target.value.replace(/[^0-9()+\-*/.,×÷\s]/g, "").replace(/,/g, "."));
+                  setCalculatorEvaluated(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    inputCalculator("=");
+                  } else if (event.key === "Escape") {
+                    setCalculatorExpression("");
+                    setCalculatorEvaluated(false);
+                  }
+                }}
+                placeholder="0"
+                className="w-full bg-transparent text-right text-sm num outline-none"
+              />
+              <div className="text-right min-h-9 flex items-end justify-end">
+                {calculatorResult.value !== null ? (
+                  <output className="num text-2xl font-bold tracking-tight" aria-live="polite">
+                    {formatCalculatorNumber(calculatorResult.value)}
+                  </output>
+                ) : calculatorResult.error ? (
+                  <span className="text-xs text-red-600">{t("calculatorInvalid")}</span>
+                ) : (
+                  <span className="text-xs text-muted">{t("calculatorHint")}</span>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                "C", "⌫", "(", ")",
+                "7", "8", "9", "÷",
+                "4", "5", "6", "×",
+                "1", "2", "3", "-",
+                "0", ".", "+", "=",
+              ].map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onPointerDown={(event) => animateControlPress(event.currentTarget)}
+                  onClick={() => inputCalculator(key)}
+                  className={"min-h-[42px] rounded-lg border py-2.5 text-sm font-semibold transition-snappy active:scale-[.97] " + (
+                    key === "="
+                      ? "bg-[color:var(--brand)] text-white border-[color:var(--brand)]"
+                      : ["÷", "×", "-", "+", "(", ")"].includes(key)
+                        ? "text-[color:var(--brand)] border-[color:var(--line)] hover:bg-[color:var(--canvas)]"
+                        : key === "C"
+                          ? "text-red-600 border-[color:var(--line)] hover:bg-[color:var(--canvas)]"
+                          : "border-[color:var(--line)] hover:bg-[color:var(--canvas)]"
+                  )}
+                >
+                  {key}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary w-full"
+              onClick={addCalculatorResult}
+              disabled={calculatorResult.value === null || calculatorResult.value <= 0}
+            >
+              <Icon name="plus" /> {t("calculatorUseResult")}
+            </button>
+            <p className="text-[11px] text-muted leading-relaxed">{t("calculatorRoundingHint")}</p>
+          </section>
         </aside>
       </div>
 
@@ -397,6 +538,114 @@ export default function PriceDeskPage() {
       )}
     </div>
   );
+}
+
+function formatCalculatorNumber(value: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    maximumFractionDigits: 8,
+    maximumSignificantDigits: 14,
+  }).format(value);
+}
+
+function evaluateCalculatorExpression(expression: string): number {
+  const source = expression.trim().replace(/[×]/g, "*").replace(/[÷]/g, "/").replace(/,/g, ".");
+  if (!source.trim() || source.length > 120) throw new Error("Invalid expression");
+
+  type Token =
+    | { type: "number"; value: number }
+    | { type: "operator"; value: "+" | "-" | "*" | "/" }
+    | { type: "paren"; value: "(" | ")" };
+
+  const tokens: Token[] = [];
+  const pattern = /\s*(?:(\d+(?:\.\d*)?|\.\d+)|([()+\-*/]))/y;
+  let offset = 0;
+
+  while (offset < source.length) {
+    pattern.lastIndex = offset;
+    const match = pattern.exec(source);
+    if (!match) throw new Error("Invalid token");
+    offset = pattern.lastIndex;
+
+    if (match[1] !== undefined) {
+      const value = Number(match[1]);
+      if (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER) {
+        throw new Error("Number out of range");
+      }
+      tokens.push({ type: "number", value });
+    } else {
+      const symbol = match[2];
+      if (symbol === "(" || symbol === ")") {
+        tokens.push({ type: "paren", value: symbol });
+      } else if (symbol === "+" || symbol === "-" || symbol === "*" || symbol === "/") {
+        tokens.push({ type: "operator", value: symbol });
+      } else {
+        throw new Error("Invalid operator");
+      }
+    }
+  }
+
+  let cursor = 0;
+  const clean = (value: number) => {
+    if (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER) {
+      throw new Error("Result out of range");
+    }
+    return Number(value.toPrecision(14));
+  };
+
+  const parsePrimary = (): number => {
+    const token = tokens[cursor];
+    if (!token) throw new Error("Expected a number");
+
+    if (token.type === "operator" && (token.value === "+" || token.value === "-")) {
+      cursor += 1;
+      const value = parsePrimary();
+      return token.value === "-" ? -value : value;
+    }
+
+    if (token.type === "paren" && token.value === "(") {
+      cursor += 1;
+      const value = parseExpression();
+      const closing = tokens[cursor];
+      if (!closing || closing.type !== "paren" || closing.value !== ")") {
+        throw new Error("Missing closing parenthesis");
+      }
+      cursor += 1;
+      return value;
+    }
+
+    if (token.type !== "number") throw new Error("Expected a number");
+    cursor += 1;
+    return token.value;
+  };
+
+  const parseTerm = (): number => {
+    let value = parsePrimary();
+    while (true) {
+      const token = tokens[cursor];
+      if (!token || token.type !== "operator" || (token.value !== "*" && token.value !== "/")) break;
+      cursor += 1;
+      const right = parsePrimary();
+      if (token.value === "/" && right === 0) throw new Error("Division by zero");
+      value = clean(token.value === "*" ? value * right : value / right);
+    }
+    return value;
+  };
+
+  const parseExpression = (): number => {
+    let value = parseTerm();
+    while (true) {
+      const token = tokens[cursor];
+      if (!token || token.type !== "operator" || (token.value !== "+" && token.value !== "-")) break;
+      cursor += 1;
+      const right = parseTerm();
+      value = clean(token.value === "+" ? value + right : value - right);
+    }
+    return value;
+  };
+
+  const result = parseExpression();
+  if (cursor !== tokens.length) throw new Error("Unexpected token");
+  return clean(result);
 }
 
 function ServiceEditor({
@@ -457,9 +706,12 @@ function CustomEntry({
   onAdd: () => void;
 }) {
   const { t } = useI18n();
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useOverlayMotion(overlayRef, true);
+  useDialogAccessibility(overlayRef, true, onCancel);
   return (
-    <div className="fixed inset-0 z-40 backdrop flex items-end md:items-center justify-center no-print fade-in p-0 md:p-4" onClick={onCancel}>
-      <div className="card w-full max-w-sm sheet md:!rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div ref={overlayRef} className="fixed inset-0 z-40 backdrop flex items-end md:items-center justify-center no-print p-0 md:p-4" onClick={onCancel}>
+      <div className="card motion-panel w-full max-w-sm sheet md:!rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("addCustomItem")} tabIndex={-1}>
         <div className="px-5 py-4 flex items-center justify-between border-b" style={{ borderColor: "var(--line)" }}>
           <h3 className="font-semibold">{t("addCustomItem")}</h3>
           <button className="btn btn-ghost !p-2" onClick={onCancel} aria-label={t("close")}><Icon name="xmark" /></button>

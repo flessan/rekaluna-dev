@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import { Icon } from "../lib/icons";
+import { usePageMotion } from "../lib/motion";
 import { useToast } from "../lib/toast";
 import { useI18n } from "../lib/i18n";
 
@@ -6,10 +8,12 @@ export default function SupportPage() {
   const toast = useToast();
   const { t } = useI18n();
   const donateLink = new URL("/donate", window.location.origin).toString();
+  const pageRef = useRef<HTMLDivElement>(null);
+  usePageMotion(pageRef, "support");
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="card p-6 md:p-10 text-center">
+    <div ref={pageRef} className="max-w-3xl mx-auto">
+      <div className="card p-6 md:p-10 text-center motion-enter">
         <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center text-white mb-4" style={{ background: "var(--brand)" }}>
           <Icon name="heart" size="lg" />
         </div>

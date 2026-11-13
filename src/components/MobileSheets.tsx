@@ -15,13 +15,15 @@ export function MobileSearch({ open, onClose }: { open: boolean; onClose: () => 
   const { t } = useI18n();
 
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 100);
+    if (!open) return;
+    const frame = window.requestAnimationFrame(() => inputRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
   }, [open]);
 
   const commands = useMemo(() => registry.search(q), [q, data]);
 
   return (
-    <BottomSheet open={open} onClose={onClose}>
+    <BottomSheet open={open} onClose={onClose} title={t("searchTools")}>
       <div className="flex items-center gap-2 border rounded-xl px-3 py-2 mb-3" style={{ borderColor: "var(--line)" }}>
         <Icon name="search" className="text-muted" />
         <input

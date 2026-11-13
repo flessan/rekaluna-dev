@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import "./index.css";
@@ -12,13 +12,15 @@ import { ToastProvider } from "./lib/toast";
 import { initTheme } from "./lib/theme";
 import { Icon } from "./lib/icons";
 import { I18nProvider, useI18n } from "./lib/i18n";
-
-import WorkspacePage from "./pages/Workspace";
-import QuickPrintPage from "./features/quickprint/QuickPrintPage";
-import PriceDeskPage from "./features/pricedesk/PriceDeskPage";
-import ResourcesPage from "./pages/Resources";
-import SupportPage from "./pages/Support";
-import AboutPage from "./pages/About";
+import PageLoading from "./components/PageLoading";
+import {
+  WorkspacePage,
+  QuickPrintPage,
+  PriceDeskPage,
+  ResourcesPage,
+  SupportPage,
+  AboutPage,
+} from "./pages/route-pages";
 
 // Prevent FontAwesome from auto-inserting CSS (we already import it)
 config.autoAddCss = false;
@@ -80,15 +82,17 @@ function App() {
     <CommandProvider navigate={(p) => nav(p)} openModal={openModal}>
       <ToastProvider>
         <AppShell onOpenModal={openModal}>
-          <Routes>
-            <Route path="/" element={<WorkspacePage />} />
-            <Route path="/print" element={<QuickPrintPage />} />
-            <Route path="/price" element={<PriceDeskPage />} />
-            <Route path="/resources" element={<ResourcesPage />} />
-            <Route path="/support" element={<SupportPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<PageLoading />}>
+            <Routes>
+              <Route path="/" element={<WorkspacePage />} />
+              <Route path="/print" element={<QuickPrintPage />} />
+              <Route path="/price" element={<PriceDeskPage />} />
+              <Route path="/resources" element={<ResourcesPage />} />
+              <Route path="/support" element={<SupportPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </AppShell>
 
         <SettingsModal open={modal === "settings"} onClose={closeModal} />
