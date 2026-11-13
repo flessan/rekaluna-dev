@@ -27,7 +27,6 @@ export function AppShell({
   const { t } = useI18n();
   const currentTitle =
     t(NAV.find((n) => n.to === loc.pathname)?.label ?? "workspace");
-
   return (
     <div className="min-h-full flex flex-col">
       {/* Desktop layout */}
@@ -124,7 +123,7 @@ export function AppShell({
               <Icon name="gear" />
             </button>
           </header>
-          <main className="flex-1 px-6 py-6 fade-in" key={loc.pathname}>
+          <main className="flex-1 px-6 py-6" key={loc.pathname}>
             {children}
           </main>
         </div>
@@ -155,7 +154,7 @@ export function AppShell({
             <Icon name="gear" />
           </button>
         </header>
-        <main className="flex-1 px-4 py-4 fade-in" key={loc.pathname + ":m"}>
+        <main className="flex-1 px-4 py-4" key={loc.pathname + ":m"}>
           {children}
         </main>
 

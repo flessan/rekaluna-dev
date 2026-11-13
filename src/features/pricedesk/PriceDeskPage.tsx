@@ -4,6 +4,8 @@ import { format, storage, uid, type TransactionItem, type Service } from "../../
 import { useStorage } from "../../lib/storage-hooks";
 import { useToast } from "../../lib/toast";
 import { useI18n } from "../../lib/i18n";
+import { animateControlPress, useOverlayMotion, usePageMotion, useValueFeedback } from "../../lib/motion";
+import { useDialogAccessibility } from "../../lib/dialog-accessibility";
 
 export default function PriceDeskPage() {
   const { data, update } = useStorage();
@@ -19,9 +21,13 @@ export default function PriceDeskPage() {
   const [calculatorExpression, setCalculatorExpression] = useState("");
   const [calculatorEvaluated, setCalculatorEvaluated] = useState(false);
   const lastRemoved = useRef<{ items: TransactionItem[]; index: number } | null>(null);
+  const totalRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  usePageMotion(pageRef, "price-desk");
 
   const total = useMemo(() => items.reduce((s, it) => s + it.price * it.qty, 0), [items]);
   const change = cashGiven - total;
+  useValueFeedback(totalRef, total);
   const calculatorResult = useMemo(() => {
     if (!calculatorExpression.trim()) return { value: null as number | null, error: false };
     try {
@@ -185,8 +191,8 @@ export default function PriceDeskPage() {
   // Keyboard: numeric quick money via Numpad numbers mapped via Shift? Too complex. Skip.
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex items-end justify-between mb-5 gap-3 flex-wrap">
+    <div ref={pageRef} className="max-w-6xl mx-auto">
+      <div className="flex items-end justify-between mb-5 gap-3 flex-wrap motion-enter">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t("priceDesk")}</h1>
           <p className="text-sm text-muted mt-1">{t("priceSubtitle")}</p>
@@ -207,13 +213,14 @@ export default function PriceDeskPage() {
 
       <div className="grid md:grid-cols-[340px_1fr_300px] gap-4">
         {/* Services / Quick money */}
-        <section className="card p-4 space-y-4 h-fit md:sticky md:top-20 order-2 md:order-1">
+        <section className="card p-4 space-y-4 h-fit md:sticky md:top-20 order-2 md:order-1 motion-enter">
           <div>
             <div className="label mb-2">{t("services")}</div>
             <div className="grid grid-cols-2 gap-2">
               {data.services.map((s) => (
                 <div key={s.id} className="relative group">
                   <button
+                    onPointerDown={(event) => animateControlPress(event.currentTarget)}
                     onClick={() => {
                       if (editServices) return;
                       addItem(s.name, s.price, s.id);
@@ -270,6 +277,7 @@ export default function PriceDeskPage() {
               {data.settings.quickMoney.map((amt) => (
                 <button
                   key={amt}
+                  onPointerDown={(event) => animateControlPress(event.currentTarget)}
                   onClick={() => quickAdd(amt)}
                   className="money-btn num"
                 >
@@ -281,7 +289,7 @@ export default function PriceDeskPage() {
         </section>
 
         {/* Transaction */}
-        <section className="card order-1 md:order-2">
+        <section className="card order-1 md:order-2 motion-enter">
           <div className="px-4 py-3 flex items-center justify-between border-b" style={{ borderColor: "var(--line)" }}>
             <div className="font-semibold flex items-center gap-2">
               <Icon name="cash" /> {t("transaction")}
@@ -359,7 +367,7 @@ export default function PriceDeskPage() {
           <div className="px-4 py-4 border-t flex items-center justify-between" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--brand) 4%, transparent)" }}>
             <div>
               <div className="text-xs uppercase tracking-wide text-muted">{t("total")}</div>
-              <div className="num text-3xl md:text-4xl font-extrabold tracking-tight">
+              <div ref={totalRef} className="num text-3xl md:text-4xl font-extrabold tracking-tight">
                 {format.rupiah(total)}
               </div>
             </div>
@@ -372,7 +380,7 @@ export default function PriceDeskPage() {
         </section>
 
         {/* Cash check */}
-        <aside className="card p-4 space-y-3 h-fit md:sticky md:top-20 order-3">
+        <aside className="card p-4 space-y-3 h-fit md:sticky md:top-20 order-3 motion-enter">
           <div className="label">{t("cashCheck")}</div>
           <div>
             <div className="text-xs text-muted mb-1">{t("amountReceived")}</div>
@@ -489,8 +497,9 @@ export default function PriceDeskPage() {
                 <button
                   key={key}
                   type="button"
+                  onPointerDown={(event) => animateControlPress(event.currentTarget)}
                   onClick={() => inputCalculator(key)}
-                  className={"rounded-lg border py-2.5 text-sm font-semibold transition-snappy active:scale-[.97] " + (
+                  className={"min-h-[42px] rounded-lg border py-2.5 text-sm font-semibold transition-snappy active:scale-[.97] " + (
                     key === "="
                       ? "bg-[color:var(--brand)] text-white border-[color:var(--brand)]"
                       : ["÷", "×", "-", "+", "(", ")"].includes(key)
@@ -697,9 +706,12 @@ function CustomEntry({
   onAdd: () => void;
 }) {
   const { t } = useI18n();
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useOverlayMotion(overlayRef, true);
+  useDialogAccessibility(overlayRef, true, onCancel);
   return (
-    <div className="fixed inset-0 z-40 backdrop flex items-end md:items-center justify-center no-print fade-in p-0 md:p-4" onClick={onCancel}>
-      <div className="card w-full max-w-sm sheet md:!rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div ref={overlayRef} className="fixed inset-0 z-40 backdrop flex items-end md:items-center justify-center no-print p-0 md:p-4" onClick={onCancel}>
+      <div className="card motion-panel w-full max-w-sm sheet md:!rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("addCustomItem")} tabIndex={-1}>
         <div className="px-5 py-4 flex items-center justify-between border-b" style={{ borderColor: "var(--line)" }}>
           <h3 className="font-semibold">{t("addCustomItem")}</h3>
           <button className="btn btn-ghost !p-2" onClick={onCancel} aria-label={t("close")}><Icon name="xmark" /></button>

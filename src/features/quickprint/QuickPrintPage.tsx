@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../lib/icons";
 import { useStorage } from "../../lib/storage-hooks";
 import { storage, uid } from "../../lib/storage";
 import { useI18n } from "../../lib/i18n";
+import { usePageMotion, usePanelMotion } from "../../lib/motion";
 
 type PaperSize = "A4" | "F4" | "Letter" | "Legal";
 type Orientation = "portrait" | "landscape";
@@ -122,8 +123,14 @@ export default function QuickPrintPage() {
   const [fileTargetId, setFileTargetId] = useState<string | undefined>();
   const [guides, setGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  usePageMotion(pageRef, "quick-print", false);
   const previewRef = useRef<HTMLDivElement>(null);
   const artboardRef = useRef<HTMLDivElement>(null);
+  const toolPanelRef = useRef<HTMLDivElement>(null);
+  const inspectorRef = useRef<HTMLElement>(null);
+  usePanelMotion(toolPanelRef, toolPanelTab);
+  usePanelMotion(inspectorRef, inspectorTab, ".motion-tab-panel");
   const dragRef = useRef<DragState | null>(null);
   const marqueeRef = useRef<MarqueeState | null>(null);
 
@@ -925,12 +932,27 @@ export default function QuickPrintPage() {
     setSelectedId(null); setSelectedIds([]); setCropMode(false); setDropTargetId(null);
   };
 
+  const handleTabKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const tabs = Array.from(event.currentTarget.closest('[role="tablist"]')?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []);
+    if (!tabs.length) return;
+    const index = tabs.indexOf(event.currentTarget);
+    let next = index;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (index + 1) % tabs.length;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (index - 1 + tabs.length) % tabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    tabs[next]?.focus();
+    tabs[next]?.click();
+  };
+
   const objectCount = objects.length;
   const sortedObjects = useMemo(() => [...objects].sort((a, b) => b.zIndex - a.zIndex), [objects]);
 
   return (
-    <div className="max-w-[1500px] mx-auto">
-      <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
+    <div ref={pageRef} className="max-w-[1500px] mx-auto">
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-5 motion-enter">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t("qpTitle")}</h1>
           <p className="text-sm text-muted mt-1">{t("qpSubtitle")} <span className="kbd ml-1">Ctrl V</span></p>
@@ -944,7 +966,7 @@ export default function QuickPrintPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[190px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)_320px] gap-4 items-start">
-        <aside className="card p-3 space-y-3 no-print">
+        <aside className="card p-3 space-y-3 no-print motion-enter">
           <div className="grid grid-cols-3 xl:grid-cols-1 gap-1" role="tablist" aria-label={t("toolbox")}>
             {([
               { id: "media", label: t("addImages"), icon: "image" },
@@ -956,6 +978,8 @@ export default function QuickPrintPage() {
                 type="button"
                 role="tab"
                 aria-selected={toolPanelTab === tab.id}
+                tabIndex={toolPanelTab === tab.id ? 0 : -1}
+                onKeyDown={handleTabKeyDown}
                 onClick={() => setToolPanelTab(tab.id)}
                 className={"flex xl:w-full flex-col xl:flex-row items-center justify-center xl:justify-start gap-1.5 xl:gap-2 rounded-lg px-2 py-2.5 text-[11px] xl:text-xs font-medium transition-snappy " + (toolPanelTab === tab.id ? "bg-[rgba(156,28,38,.09)] text-[color:var(--brand)]" : "text-muted hover:bg-[color:var(--canvas)]")}
               >
@@ -965,7 +989,7 @@ export default function QuickPrintPage() {
             ))}
           </div>
 
-          <div className="border-t pt-3 space-y-3" style={{ borderColor: "var(--line)" }}>
+          <div ref={toolPanelRef} className="border-t pt-3 space-y-3" style={{ borderColor: "var(--line)" }}>
             {toolPanelTab === "media" && (
               <div className="space-y-3">
                 <div>
@@ -1274,7 +1298,7 @@ export default function QuickPrintPage() {
               data-context-menu
               role="menu"
               aria-label={contextObject ? contextObject.name : t("quickActions")}
-              className="fixed z-[10000] w-[224px] max-w-[calc(100vw-20px)] max-h-[calc(100dvh-20px)] overflow-y-auto overscroll-contain rounded-xl border p-1.5 shadow-xl no-print"
+              className="fixed z-[10000] w-[224px] max-w-[calc(100vw-20px)] max-h-[calc(100dvh-20px)] overflow-y-auto overscroll-contain rounded-xl border p-1.5 shadow-xl no-print menu-enter"
               style={{
                 left: contextMenuPosition?.left ?? clamp(contextMenu.x + 8, 10, window.innerWidth - 234),
                 top: contextMenuPosition?.top ?? clamp(contextMenu.y + 8, 10, window.innerHeight - 260),
@@ -1371,7 +1395,7 @@ export default function QuickPrintPage() {
           </div>
         </section>
 
-        <aside className="space-y-4 no-print lg:col-span-2 xl:col-span-1">
+        <aside ref={inspectorRef} className="space-y-4 no-print lg:col-span-2 xl:col-span-1 motion-enter">
           <div className="card p-1.5 grid grid-cols-3 gap-1" role="tablist" aria-label={t("inspector")}>
             {([
               { id: "page", label: t("paper"), icon: "file-pdf" },
@@ -1383,6 +1407,8 @@ export default function QuickPrintPage() {
                 type="button"
                 role="tab"
                 aria-selected={inspectorTab === tab.id}
+                tabIndex={inspectorTab === tab.id ? 0 : -1}
+                onKeyDown={handleTabKeyDown}
                 onClick={() => setInspectorTab(tab.id)}
                 className={"rounded-lg px-2 py-2 flex items-center justify-center gap-1.5 text-xs font-medium transition-snappy " + (inspectorTab === tab.id ? "bg-[rgba(156,28,38,.09)] text-[color:var(--brand)]" : "text-muted hover:bg-[color:var(--canvas)]")}
               >
@@ -1393,7 +1419,7 @@ export default function QuickPrintPage() {
           </div>
 
           {inspectorTab === "page" && (
-          <section className="card p-4 space-y-3">
+          <section className="card p-4 space-y-3 motion-tab-panel">
             <div className="label">{t("paper")}</div>
             <div className="grid grid-cols-4 gap-1.5">
               {(["A4", "F4", "Letter", "Legal"] as PaperSize[]).map((size) => (
@@ -1453,7 +1479,7 @@ export default function QuickPrintPage() {
           )}
 
           {inspectorTab === "position" && (
-          <section className="card p-4 space-y-3">
+          <section className="card p-4 space-y-3 motion-tab-panel">
             <div className="flex items-center justify-between">
               <div className="label">{t("selectedObject")}</div>
               {selected && <span className="text-[11px] text-muted truncate max-w-[130px]">{selectedCount > 1 ? selectedCount + " " + t("selectedCount") : selected.name}</span>}
@@ -1523,7 +1549,7 @@ export default function QuickPrintPage() {
           )}
 
           {inspectorTab === "layers" && (
-          <section className="card p-4 space-y-2">
+          <section className="card p-4 space-y-2 motion-tab-panel">
             <div className="flex items-center justify-between">
               <div className="label">{t("layers")} · {objectCount}</div>
               <label className="inline-flex gap-1.5 items-center text-[11px] text-muted">

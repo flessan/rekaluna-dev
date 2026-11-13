@@ -1,10 +1,15 @@
+import { useRef } from "react";
 import { Icon } from "../lib/icons";
+import { usePageMotion, useScrollReveal } from "../lib/motion";
 import { useI18n } from "../lib/i18n";
 
 export default function AboutPage() {
   const { t } = useI18n();
+  const contentRef = useRef<HTMLDivElement>(null);
+  usePageMotion(contentRef, "about");
+  useScrollReveal(contentRef, "[data-scroll-reveal]");
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div ref={contentRef} className="max-w-3xl mx-auto space-y-5">
       <div className="card p-6 md:p-8">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl" style={{ background: "var(--brand)" }}>
@@ -68,7 +73,7 @@ export default function AboutPage() {
 
 function Section({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
   return (
-    <section className="card p-6 md:p-8">
+    <section className="card p-6 md:p-8" data-scroll-reveal>
       <div className="flex items-center gap-2 mb-3">
         <span className="w-8 h-8 rounded-lg flex items-center justify-center text-white" style={{ background: "var(--brand)" }}>
           <Icon name={icon} size="sm" />

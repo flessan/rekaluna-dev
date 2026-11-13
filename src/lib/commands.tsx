@@ -3,6 +3,8 @@ import { Icon } from "./icons";
 import { useStorage } from "./storage-hooks";
 import { storage } from "./storage";
 import { useI18n } from "./i18n";
+import { useOverlayMotion } from "./motion";
+import { useDialogAccessibility } from "./dialog-accessibility";
 
 export interface Command {
   id: string;
@@ -86,6 +88,8 @@ export function CommandProvider({
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useOverlayMotion(overlayRef, isOpen);
   const ctx: CommandContext = useMemo(
     () => ({
       navigate: (p) => {
@@ -172,10 +176,14 @@ export function CommandProvider({
     setOpen(true);
     setQuery("");
     setActive(0);
-    setTimeout(() => inputRef.current?.focus(), 10);
   }, [isMobile, openModal]);
 
   const close = useCallback(() => setOpen(false), []);
+  useDialogAccessibility(overlayRef, isOpen, close);
+
+  useEffect(() => {
+    if (isOpen) inputRef.current?.focus();
+  }, [isOpen]);
 
   // Keyboard shortcut
   useEffect(() => {
@@ -192,8 +200,6 @@ export function CommandProvider({
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
         e.preventDefault();
         requestSheetPrint();
-      } else if (e.key === "Escape" && isOpen) {
-        close();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -231,15 +237,17 @@ export function CommandProvider({
       {children}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 backdrop flex items-start justify-center pt-[10vh] no-print fade-in"
+          ref={overlayRef}
+          className="fixed inset-0 z-50 backdrop flex items-start justify-center pt-[10vh] no-print"
           onClick={close}
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("commandPalette")}
         >
           <div
-            className="card w-full max-w-xl mx-4 overflow-hidden shadow-pop"
+            className="card motion-panel w-full max-w-xl mx-4 overflow-hidden shadow-pop"
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("commandPalette")}
+            tabIndex={-1}
           >
             <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "var(--line)" }}>
               <Icon name="search" className="text-muted" />

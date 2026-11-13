@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "../lib/icons";
 import { useStorage } from "../lib/storage-hooks";
-import { format, storage } from "../lib/storage";
+import { storage } from "../lib/storage";
 import { useI18n } from "../lib/i18n";
+import { usePageMotion } from "../lib/motion";
 
 function greetingKey() {
   const hour = new Date().getHours();
@@ -35,6 +36,8 @@ export default function WorkspacePage() {
   const { data, update } = useStorage();
   const nav = useNavigate();
   const { t, locale } = useI18n();
+  const pageRef = useRef<HTMLDivElement>(null);
+  usePageMotion(pageRef, "workspace");
 
   const favs = data.favorites;
   const recents = useMemo(() => data.recents.slice(0, 8), [data.recents]);
@@ -58,9 +61,9 @@ export default function WorkspacePage() {
   const isFav = (id: string) => favs.some((f) => f.id === id);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div ref={pageRef} className="max-w-6xl mx-auto space-y-6">
       {/* Greeting */}
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex items-end justify-between gap-4 motion-enter">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t(greetingKey())}</h1>
           <p className="text-sm text-muted mt-1">
@@ -80,35 +83,35 @@ export default function WorkspacePage() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {QUICK.map((q) => (
-            <button
-              key={q.to}
-              onClick={() => nav(q.to)}
-              className="card p-4 text-left hover:shadow-soft transition-snappy group relative"
-            >
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 text-white"
-                style={{ background: "var(--brand)" }}
-              >
-                <Icon name={q.icon} />
-              </div>
-              <div className="font-semibold">{t(q.label as any)}</div>
-              <div className="text-xs text-muted mt-0.5">{t(q.desc as any)}</div>
+            <div key={q.to} className="card interactive-card relative overflow-hidden hover:shadow-soft transition-snappy group motion-enter">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFavorite(q.to);
-                }}
+                onClick={() => nav(q.to)}
+                className="w-full p-4 pr-12 text-left rounded-[13px]"
+                aria-label={`${t(q.label as any)}. ${t(q.desc as any)}`}
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 text-white"
+                  style={{ background: "var(--brand)" }}
+                >
+                  <Icon name={q.icon} />
+                </div>
+                <div className="font-semibold">{t(q.label as any)}</div>
+                <div className="text-xs text-muted mt-0.5">{t(q.desc as any)}</div>
+              </button>
+              <button
+                onClick={() => toggleFavorite(q.to)}
                 className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-[color:var(--brand)] transition-snappy"
                 aria-label={isFav(q.to) ? t("unfavorite") : t("favorite")}
+                aria-pressed={isFav(q.to)}
               >
-                <Icon name={isFav(q.to) ? "star" : "star"} className={isFav(q.to) ? "text-[color:var(--brand)]" : ""} />
+                <Icon name="star" className={isFav(q.to) ? "text-[color:var(--brand)]" : ""} />
               </button>
-            </button>
+            </div>
           ))}
         </div>
       </section>
 
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-3 gap-4 motion-enter">
         {/* Favorites */}
         <section className="card p-4 md:col-span-2">
           <div className="flex items-center justify-between mb-3">
@@ -197,7 +200,7 @@ export default function WorkspacePage() {
       </div>
 
       {/* Shortcut hint */}
-      <section className="card p-4 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+      <section className="card p-4 flex flex-col md:flex-row md:items-center gap-3 md:gap-6 motion-enter">
         <div className="flex items-center gap-2 text-sm">
           <Icon name="keyboard" className="text-[color:var(--brand)]" />
           <span className="font-medium">{t("keyboardFirst")}</span>
@@ -226,6 +229,3 @@ function EmptyFavs() {
     </div>
   );
 }
-
-// unused in this page - keep formatter imported for tree-shake safety
-void format;
